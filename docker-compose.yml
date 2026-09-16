@@ -1,0 +1,41 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+    container_name: mailprobe-backend
+    env_file:
+      - .env
+    environment:
+      - PORT=${PORT:-4000}
+    expose:
+      - "${PORT:-4000}"
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          target: /app/src
+          path: ./backend/src
+        - action: sync
+          target: /app/package.json
+          path: ./backend/package.json
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: mailprobe-frontend
+    env_file:
+      - .env
+    environment:
+      - BACKEND_PORT=${PORT:-4000}
+      - NGINX_ENVSUBST_FILTER=^BACKEND_PORT$
+    ports:
+      - "127.0.0.1:50000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          target: /usr/share/nginx/html
+          path: ./frontend/src
