@@ -95,7 +95,7 @@ async function testSMTP(data = {}) {
     await transporter.verify();
   } catch (error) {
     return {
-      httpStatus: 401,
+      httpStatus: 502,
       body: {
         success: false,
         stage: "smtp_authentication",
