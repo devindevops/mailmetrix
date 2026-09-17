@@ -1,4 +1,5 @@
 import { $, escapeHtml } from "./utils.js";
+import { startFlow, flowActive, flowSuccess, flowError } from "./flow.js";
 
 export function initDNS() {
   const button = $("dnsButton");
@@ -18,18 +19,27 @@ export function initDNS() {
 
     button.disabled = true;
     button.textContent = "Checking DNS...";
+    startFlow();
+    flowSuccess("flowFrontend");
+    flowActive("flowBackend");
     output.className = "result waiting";
     output.textContent = "Resolving MX, SPF and DMARC records...";
 
     try {
       const response = await fetch(`/api/dns/check?domain=${encodeURIComponent(value)}`);
+      flowSuccess("flowBackend");
+      flowActive("flowSMTP");
       const data = await response.json();
 
       if (!response.ok) {
+        flowError("flowSMTP");
         output.className = "result error";
         output.innerHTML = `<div class="result-title">DNS Check Failed</div><div class="result-message">${escapeHtml(data.error || "DNS lookup failed.")}</div>`;
         return;
       }
+
+      flowSuccess("flowSMTP");
+      flowActive("flowEmail");
 
       const mx = data.mx.records.length
         ? data.mx.records.map((r) => `<div class="dns-mx-row"><span class="dns-mx-priority">${escapeHtml(r.priority)}</span><span class="dns-mx-host">${escapeHtml(r.exchange)}</span></div>`).join("")
@@ -38,6 +48,7 @@ export function initDNS() {
       const record = (value, missing) =>
         value ? `<pre>${escapeHtml(value)}</pre>` : `<div>${escapeHtml(missing)}</div>`;
 
+      flowSuccess("flowEmail");
       output.className = "result success";
       output.innerHTML = `
         <div class="result-title">DNS Check Complete</div>
@@ -84,6 +95,7 @@ export function initDNS() {
         }
       });
     } catch (error) {
+      flowError("flowBackend");
       output.className = "result error";
       output.innerHTML = `<div class="result-title">Request Failed</div><div class="result-message">${escapeHtml(error.message)}</div>`;
     } finally {

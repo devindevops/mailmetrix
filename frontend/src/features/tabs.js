@@ -1,7 +1,8 @@
 const PANELS = {
   smtp: "smtpTool",
   dns: "dnsTool",
-  headers: "headersTool"
+  headers: "headersTool",
+  generator: "generatorTool"
 };
 
 const FLOW_COPY = {
@@ -30,6 +31,15 @@ const FLOW_COPY = {
       ["Backend", "Node.js"],
       ["Parser", "Analysis"],
       ["Findings", "Diagnostics"]
+    ]
+  },
+  generator: {
+    title: "DKIM & DMARC generation path",
+    labels: [
+      ["Frontend", "Browser"],
+      ["Backend", "Node.js"],
+      ["Generator", "Cryptography"],
+      ["DNS", "Records"]
     ]
   }
 };

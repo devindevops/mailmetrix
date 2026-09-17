@@ -5,6 +5,7 @@ const express = require("express");
 const smtpRoutes = require("./routes/smtp");
 const dnsRoutes = require("./routes/dns");
 const headerRoutes = require("./routes/headers");
+const generatorRoutes = require("./routes/generator");
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -22,6 +23,7 @@ app.get("/health", (req, res) => {
 app.use("/smtp", smtpRoutes);
 app.use("/dns", dnsRoutes);
 app.use("/headers", headerRoutes);
+app.use("/generator", generatorRoutes);
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`MailProbe backend running on port ${PORT}`);

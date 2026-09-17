@@ -1,4 +1,5 @@
 import { $, escapeHtml } from "./utils.js";
+import { startFlow, flowActive, flowSuccess, flowError } from "./flow.js";
 
 const badge = (status) => {
   const value = String(status || "not_found").toLowerCase();
@@ -25,6 +26,9 @@ export function initHeaders() {
 
     button.disabled = true;
     button.textContent = "Analyzing Headers...";
+    startFlow();
+    flowSuccess("flowFrontend");
+    flowActive("flowBackend");
     result.className = "result waiting";
     result.textContent = "Parsing email headers...";
 
@@ -35,13 +39,19 @@ export function initHeaders() {
         body: JSON.stringify({ headers })
       });
 
+      flowSuccess("flowBackend");
+      flowActive("flowSMTP");
       const data = await response.json();
 
       if (!response.ok) {
+        flowError("flowSMTP");
         result.className = "result error";
         result.innerHTML = `<div class="result-title">Header Analysis Failed</div><div class="result-message">${escapeHtml(data.error || "Unable to analyze the supplied headers.")}</div>`;
         return;
       }
+
+      flowSuccess("flowSMTP");
+      flowActive("flowEmail");
 
       const a = data.analysis;
       const auth = a.authentication;
@@ -54,6 +64,7 @@ export function initHeaders() {
         ? data.findings.map((f) => `<div class="header-finding ${escapeHtml(f.severity)}"><strong>${escapeHtml(f.severity.toUpperCase())}</strong><span>${escapeHtml(f.message)}</span></div>`).join("")
         : `<div class="header-finding success"><strong>OK</strong><span>No basic header issues were detected.</span></div>`;
 
+      flowSuccess("flowEmail");
       result.className = "result success";
       result.innerHTML = `
         <div class="result-title">Header Analysis Complete</div>
@@ -80,6 +91,7 @@ export function initHeaders() {
         <div class="header-section"><h3>Delivery Path</h3><div class="header-hops">${hops}</div></div>
         <div class="header-section"><h3>Findings</h3><div class="header-findings">${findings}</div></div>`;
     } catch (error) {
+      flowError("flowBackend");
       result.className = "result error";
       result.innerHTML = `<div class="result-title">Request Failed</div><div class="result-message">${escapeHtml(error.message)}</div>`;
     } finally {
