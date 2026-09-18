@@ -4,32 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#f6f7fb" />
-  <meta name="description" content="MailProbe — SMTP, DNS and email header diagnostics." />
-  <meta name="application-name" content="MailProbe" />
+  <meta name="description" content="MailMetrix — SMTP, DNS and email header diagnostics." />
+  <meta name="application-name" content="MailMetrix" />
   <link rel="icon" href="/icons/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-  <meta name="description" content="MailProbe — SMTP, DNS and email header diagnostics." />
-  <title>MailProbe | SMTP & Email Infrastructure Diagnostics</title>
+  <meta name="description" content="MailMetrix — SMTP, DNS and email header diagnostics." />
+  <title>MailMetrix | SMTP & Email Infrastructure Diagnostics</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <div class="app-shell">
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
-
     <div class="container">
       <header class="hero">
         <div class="eyebrow"><span class="eyebrow-dot"></span> Mail infrastructure toolkit</div>
-        <h1>Mail<span>Probe</span></h1>
+        <h1>Mail<span>Metrix</span></h1>
         <p>SMTP, DNS, DKIM, DMARC &amp; email header diagnostics in one focused workspace.</p>
       </header>
 
-      <nav class="tool-tabs" aria-label="MailProbe tools">
+      <nav class="tool-tabs" aria-label="MailMetrix tools">
         <button class="tab active" type="button" data-tool="smtp">
           <span class="tab-icon">01</span>
           <span><strong>SMTP Tester</strong><small>Test delivery</small></span>
@@ -93,7 +90,7 @@
           <span id="backendStatus" class="status-value">Checking...</span>
         </div>
 
-        <main id="mailprobeTools">
+        <main id="MailMetrixTools">
 
           <!-- SMTP TOOL -->
           <section id="smtpTool" class="tool-panel">
@@ -297,7 +294,7 @@
                 </div>
                 <div class="form-group">
                   <label for="dkimSelectorGenerator">DKIM Selector</label>
-                  <input id="dkimSelectorGenerator" type="text" value="mailprobe" placeholder="mailprobe" autocomplete="off" />
+                  <input id="dkimSelectorGenerator" type="text" value="MailMetrix" placeholder="MailMetrix" autocomplete="off" />
                 </div>
                 <div class="form-group">
                   <label for="dkimKeySize">DKIM Key Size</label>
@@ -383,7 +380,7 @@
         </main>
 
         <footer class="footer">
-          <span>MailProbe</span>
+          <span>MailMetrix</span>
           <span>SMTP &amp; Email Infrastructure Diagnostics</span>
         </footer>
       </div>

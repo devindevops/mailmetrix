@@ -1,7 +1,7 @@
 {
-  "name": "mailprobe-backend",
+  "name": "MailMetrix-backend",
   "version": "1.1.0",
-  "description": "MailProbe SMTP and email infrastructure diagnostics backend",
+  "description": "MailMetrix SMTP and email infrastructure diagnostics backend",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"

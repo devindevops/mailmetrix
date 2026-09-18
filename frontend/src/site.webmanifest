@@ -1,6 +1,6 @@
 {
-  "name": "MailProbe",
-  "short_name": "MailProbe",
+  "name": "MailMetrix",
+  "short_name": "MailMetrix",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",

@@ -13,7 +13,7 @@ const PORT = Number(process.env.PORT || 4000);
 app.use(express.json({ limit: "100kb" }));
 
 app.get("/", (req, res) => {
-  res.json({ service: "MailProbe Backend", status: "running" });
+  res.json({ service: "MailMetrix Backend", status: "running" });
 });
 
 app.get("/health", (req, res) => {
@@ -26,5 +26,5 @@ app.use("/headers", headerRoutes);
 app.use("/generator", generatorRoutes);
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`MailProbe backend running on port ${PORT}`);
+  console.log(`MailMetrix backend running on port ${PORT}`);
 });

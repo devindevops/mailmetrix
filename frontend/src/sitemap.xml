@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Replace YOUR-MAILPROBE-DOMAIN with the public HTTPS hostname before deployment. -->
+<!-- Replace YOUR-MailMetrix-DOMAIN with the public HTTPS hostname before deployment. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://YOUR-MAILPROBE-DOMAIN/</loc>
+    <loc>https://YOUR-MailMetrix-DOMAIN/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>

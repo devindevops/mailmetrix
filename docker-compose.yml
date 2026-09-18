@@ -3,7 +3,7 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: mailprobe-backend
+    container_name: MailMetrix-backend
     env_file:
       - .env
     environment:
@@ -23,7 +23,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: mailprobe-frontend
+    container_name: MailMetrix-frontend
     env_file:
       - .env
     environment:

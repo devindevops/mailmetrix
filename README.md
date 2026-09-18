@@ -1,4 +1,4 @@
-# MailProbe
+# MailMetrix
 
 SMTP & Email Infrastructure Diagnostics.
 
@@ -6,6 +6,7 @@ SMTP & Email Infrastructure Diagnostics.
 - SMTP Tester
 - DNS Email Checker (MX, SPF, DMARC, DKIM selector)
 - Email Header Analyzer
+- DKIM & DMARC Generator
 
 ## Architecture
 ```text
@@ -14,21 +15,27 @@ backend/src/
 ├── routes/
 │   ├── smtp.js
 │   ├── dns.js
+│   ├── generator.js
 │   └── headers.js
 └── services/
     ├── smtp.js
     ├── dns.js
+    ├── generator.js
     └── headers.js
 
 frontend/src/
 ├── app.js
 ├── index.html
 ├── style.css
+├── site.webmanifest
+├── sitemap.xml
 └── features/
     ├── utils.js
     ├── tabs.js
     ├── smtp.js
     ├── dns.js
+    ├── flow.js
+    ├── generator.js
     └── headers.js
 ```
 
@@ -40,6 +47,7 @@ The HTML intentionally remains a single page shell to avoid unnecessary template
 ```bash
 docker compose build --no-cache
 docker compose up -d
+docker compose watch ## To Run Docker Watching Mode
 ```
 
 Open `http://localhost:50000`.

@@ -336,8 +336,8 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 1px solid #e7ebf2;
 }
 
-#mailprobeTools > .tool-panel { display: block; }
-#mailprobeTools > .tool-panel.hidden { display: none !important; }
+#MailMetrixTools > .tool-panel { display: block; }
+#MailMetrixTools > .tool-panel.hidden { display: none !important; }
 
 .tool-panel { width: 100%; }
 .tool-intro {

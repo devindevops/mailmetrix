@@ -112,7 +112,7 @@ async function testSMTP(data = {}) {
   try {
     const info = await transporter.sendMail({
       from: {
-        name: required(fromName) ? fromName.trim() : "MailProbe",
+        name: required(fromName) ? fromName.trim() : "MailMetrix",
         address: smtp.fromEmail
       },
       to: required(recipientName)

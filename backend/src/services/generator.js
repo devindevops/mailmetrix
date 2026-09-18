@@ -89,7 +89,7 @@ function generateDMARC(domain, options) {
 
 function generateRecords(input) {
   const domain = validDomain(input.domain);
-  const selector = validSelector(input.selector || "mailprobe");
+  const selector = validSelector(input.selector || "MailMetrix");
   const keySize = Number(input.keySize || 2048);
 
   if (!domain) {
