@@ -2,23 +2,24 @@
 
 * { box-sizing: border-box; }
 
+
 :root {
-  --bg: #f5f7fb;
-  --surface: rgba(255, 255, 255, 0.88);
+  --bg: #f4f7fb;
+  --surface: rgba(255, 255, 255, 0.96);
   --surface-solid: #ffffff;
-  --surface-soft: #f8f9fd;
-  --text: #172033;
-  --text-soft: #5f6b84;
-  --text-faint: #91a0ba;
-  --line: #e5e9f2;
-  --primary: #635bff;
-  --primary-dark: #4f46e5;
-  --primary-soft: #eeecff;
-  --success: #16a67a;
-  --danger: #e05252;
-  --warning: #d99018;
-  --shadow: 0 18px 55px rgba(40, 49, 78, .08);
-  --shadow-soft: 0 8px 26px rgba(40, 49, 78, .06);
+  --surface-soft: #f8fafc;
+  --text: #111827;
+  --text-soft: #526176;
+  --text-faint: #8491a5;
+  --line: #e2e8f0;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-soft: #eff6ff;
+  --success: #0f9f83;
+  --danger: #dc4444;
+  --warning: #b7791f;
+  --shadow: 0 16px 44px rgba(15, 23, 42, 0.055);
+  --shadow-soft: 0 5px 18px rgba(15, 23, 42, 0.045);
   --radius-lg: 22px;
   --radius-md: 16px;
   --radius-sm: 12px;
@@ -32,10 +33,21 @@ body {
   color: var(--text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at 12% 0%, rgba(99, 91, 255, .14), transparent 30%),
-    radial-gradient(circle at 88% 18%, rgba(126, 92, 255, .10), transparent 28%),
-    linear-gradient(180deg, #78ff89 0%, #f1f4f9 100%);
+    radial-gradient(
+      circle at 8% 0%,
+      rgba(37, 99, 235, 0.055),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 95% 12%,
+      rgba(15, 159, 131, 0.035),
+      transparent 26%
+    ),
+    linear-gradient(180deg, #78ff89 0%, #f1f4f9 100%),
+
+    var(--bg);
 }
+
 
 button, input, select, textarea { font: inherit; }
 
@@ -97,6 +109,7 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow: 0 0 0 4px rgba(109, 99, 255, .10);
 }
 
+
 .hero h1 {
   margin: 0;
   font-family: "Space Grotesk", Inter, sans-serif;
@@ -104,23 +117,42 @@ button { -webkit-tap-highlight-color: transparent; }
   line-height: .98;
   letter-spacing: -2.8px;
   font-weight: 700;
-  color: #252b3a;
+  color: #111827;
 }
 
 .hero h1 span {
-  background: linear-gradient(135deg, #564df2 10%, #8c54dc 90%);
+  background: linear-gradient(120deg, #1d4ed8, #3b82f6);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.hero p {
+
+/* .hero p {
   margin: 13px auto 0;
   max-width: 660px;
   color: var(--text-soft);
   font-size: 15px;
   line-height: 1.6;
+} */
+
+
+.hero-tagline {
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
+
+.hero-description {
+  max-width: 660px;
+  margin: 0 auto;
+  color: var(--text-soft);
+  font-size: 15px;
+  line-height: 1;
+}
+
 
 .tool-tabs {
   display: grid;
@@ -152,12 +184,15 @@ button { -webkit-tap-highlight-color: transparent; }
   transition: transform .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
 }
 
-.tab:hover { color: #444d63; background: rgba(203, 200, 208, .9); }
+.tab:hover {
+  color: #1e293b;
+  background: #e2e6ec;
+}
 
 .tab.active {
-  color: #4e49cf;
-  background: linear-gradient(180deg, #f0efff, #bbbbc8);
-  box-shadow: inset 0 0 0 1px rgba(99,91,255,.08), 0 7px 18px rgba(77,71,195,.08);
+  color: #1d4ed8;
+  background:linear-gradient(180deg,#e2e6ec);
+  box-shadow: inset 0 0 0 1px #dbeafe;
 }
 
 .tab-icon {
@@ -174,14 +209,16 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .tab.active .tab-icon {
-  color: #fff;
-  background: linear-gradient(135deg, #635bff, #7c5cff);
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 .tab strong, .tab small { display: block; }
 .tab strong { font-size: 12px; font-weight: 800; }
 .tab small { margin-top: 3px; color: #8c97ad; font-size: 10px; font-weight: 500; }
-.tab.active small { color: #7772ba; }
+.tab.active small {
+  color: #3b65b8;
+}
 
 .workspace {
   width: min(1160px, 100%);
@@ -446,9 +483,9 @@ input::placeholder, textarea::placeholder { color: #9aa7bc; }
 input:hover, select:hover, textarea:hover { border-color: #cdd4e1; }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #8a83ff;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(99,91,255,.09);
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
 }
 
 .password-wrapper { position: relative; }
@@ -481,14 +518,14 @@ input:focus, select:focus, textarea:focus {
   border: 0;
   border-radius: 12px;
   color: #fff;
-  background: linear-gradient(135deg, #5d55f5, #805be7);
-  box-shadow: 0 10px 25px rgba(93,85,245,.20);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.19);
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
   transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
 }
-.test-button:hover { transform: translateY(-1px); box-shadow: 0 13px 30px rgba(93,85,245,.27); }
+.test-button:hover { box-shadow: 0 9px 24px rgba(37, 99, 235, 0.25); }
 .test-button:active { transform: translateY(0); }
 .test-button:disabled { opacity: .62; cursor: not-allowed; transform: none; }
 .button-arrow { font-size: 16px; line-height: 1; }
@@ -657,10 +694,10 @@ input:focus, select:focus, textarea:focus {
   background: #f7f8fb;
   font-size: 10px;
 }
-.header-finding.error { color: #8f3030; background: #fff1f1; }
-.header-finding.warning { color: #8b5b0a; background: #fff8e9; }
+.result.error, .header-finding.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.generator-warning, .header-finding.warning { color: #854d0e; background: #fffbeb; border-color: #f3d28b; }
 .header-finding.info { color: #31599e; background: #eef5ff; }
-.header-finding.success { color: #075c46; background: #edfaf5; }
+.result.success, .header-finding.success { color: #065f46; background: #ecfdf5; border-color: #a7e8d3; }
 
 
 .generator-grid {
@@ -755,7 +792,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 10px;
 }
 
-.generator-warning {
+/* .generator-warning {
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 10px;
@@ -764,7 +801,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid #f2dfb8;
   font-size: 10px;
   line-height: 1.5;
-}
+} */
 
 .footer {
   display: flex;

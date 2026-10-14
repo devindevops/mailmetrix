@@ -19,11 +19,13 @@
 
 <body>
   <div class="app-shell">
+
     <div class="container">
       <header class="hero">
         <div class="eyebrow"><span class="eyebrow-dot"></span> Mail infrastructure toolkit</div>
         <h1>Mail<span>Metrix</span></h1>
-        <p>SMTP, DNS, DKIM, DMARC &amp; email header diagnostics in one focused workspace.</p>
+        <p class="hero-tagline">A Self-Hosted Service</p>
+        <p class="hero-description">SMTP, DNS, DKIM, DMARC & email header diagnostics in one focused workspace.</p>
       </header>
 
       <nav class="tool-tabs" aria-label="MailMetrix tools">
@@ -41,7 +43,7 @@
         </button>
         <button class="tab" type="button" data-tool="generator">
           <span class="tab-icon">04</span>
-          <span><strong>DKIM &amp; DMARC Generator</strong><small>Create DNS records</small></span>
+          <span><strong>DKIM & DMARC Generator</strong><small>Create DNS records</small></span>
         </button>
       </nav>
 
@@ -97,7 +99,7 @@
             <div class="tool-intro">
               <div>
                 <span class="section-kicker">SMTP diagnostics</span>
-                <h2>Verify credentials &amp; send a test</h2>
+                <h2>Verify credentials & send a test</h2>
                 <p>Connect to your SMTP server, authenticate securely, and send a real test message.</p>
               </div>
               <span class="tool-chip">SMTP</span>
@@ -171,7 +173,7 @@
             </section>
 
             <button id="testButton" class="test-button" type="button">
-              <span>Test SMTP &amp; Send Email</span>
+              <span>Test SMTP & Send Email</span>
               <span class="button-arrow">→</span>
             </button>
 
@@ -187,7 +189,7 @@
                 </div>
                 <div class="stage" id="stageSMTP">
                   <div class="stage-icon">2</div>
-                  <div><strong>SMTP Connection &amp; Authentication</strong><p>Waiting for backend...</p></div>
+                  <div><strong>SMTP Connection & Authentication</strong><p>Waiting for backend...</p></div>
                 </div>
                 <div class="stage" id="stageEmail">
                   <div class="stage-icon">3</div>
@@ -202,7 +204,7 @@
                 <span class="muted-chip">Diagnostic output</span>
               </div>
               <div id="result" class="result waiting">
-                Enter your SMTP credentials and click <strong>Test SMTP &amp; Send Email</strong>.
+                Enter your SMTP credentials and click <strong>Test SMTP & Send Email</strong>.
               </div>
             </section>
           </section>
@@ -279,14 +281,14 @@
             <div class="tool-intro">
               <div>
                 <span class="section-kicker">Authentication generator</span>
-                <h2>Generate DKIM keys &amp; DMARC policy</h2>
+                <h2>Generate DKIM keys & DMARC policy</h2>
                 <p>Create a DKIM RSA key pair and a ready-to-publish DMARC TXT record from one focused form.</p>
               </div>
               <span class="tool-chip">DKIM + DMARC</span>
             </div>
 
             <section class="card">
-              <h2>Domain &amp; DKIM Configuration</h2>
+              <h2>Domain & DKIM Configuration</h2>
               <div class="form-grid">
                 <div class="form-group">
                   <label for="generatorDomain">Domain</label>
@@ -365,7 +367,7 @@
             </section>
 
             <button id="generateAuthButton" class="test-button" type="button">
-              <span>Generate DKIM &amp; DMARC</span><span class="button-arrow">→</span>
+              <span>Generate DKIM & DMARC</span><span class="button-arrow">→</span>
             </button>
 
             <section class="card result-card">

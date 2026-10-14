@@ -1,9 +1,9 @@
-FROM node:22-alpine
+FROM node:alpine
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci
 
 COPY src ./src
 
