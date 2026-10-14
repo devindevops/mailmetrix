@@ -34,7 +34,7 @@ services:
       start_period: 15s
 
     networks:
-      - mailprobe-network
+      - mailmetrix-network
 
     logging:
       driver: json-file
@@ -84,7 +84,7 @@ services:
       start_period: 10s
 
     networks:
-      - mailprobe-network
+      - mailmetrix-network
 
     logging:
       driver: json-file
@@ -102,5 +102,5 @@ services:
           path: ./frontend/package.json
 
 networks:
-  mailprobe-network:
+  mailmetrix-network:
     driver: bridge

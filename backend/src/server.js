@@ -31,7 +31,7 @@ app.use((req, res, next) => {
 // Root endpoint.
 app.get("/", (_req, res) => {
   res.json({
-    service: "MailProbe Backend",
+    service: "Mail Metrix Backend",
     status: "running",
   });
 });
