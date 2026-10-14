@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f6f7fb" />
+  <meta name="description" content="MailMetrix — SMTP, DNS and email header diagnostics." />
+  <meta name="application-name" content="MailMetrix" />
+  <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <meta name="description" content="MailMetrix — SMTP, DNS and email header diagnostics." />
+  <title>MailMetrix | SMTP & Email Infrastructure Diagnostics</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <div class="container">
+      <header class="hero">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Mail infrastructure toolkit</div>
+        <h1>Mail<span>Metrix</span></h1>
+        <p class="hero-tagline">A Self-Hosted Service</p>
+        <p class="hero-description">SMTP, DNS, DKIM, DMARC & email header diagnostics in one focused workspace.</p>
+      </header>
+
+      <nav class="tool-tabs" aria-label="MailMetrix tools">
+        <button class="tab active" type="button" data-tool="smtp">
+          <span class="tab-icon">01</span>
+          <span><strong>SMTP Tester</strong><small>Test delivery</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="dns">
+          <span class="tab-icon">02</span>
+          <span><strong>DNS Email Checker</strong><small>Inspect records</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="headers">
+          <span class="tab-icon">03</span>
+          <span><strong>Header Analyzer</strong><small>Trace messages</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="generator">
+          <span class="tab-icon">04</span>
+          <span><strong>DKIM & DMARC Generator</strong><small>Create DNS records</small></span>
+        </button>
+      </nav>
+
+      <div class="workspace">
+
+        <section class="flow-card" aria-label="SMTP test flow">
+          <div class="flow-heading">
+            <div>
+              <span class="section-kicker">Workflow</span>
+              <h2 id="flowTitle">SMTP delivery path</h2>
+            </div>
+            <span class="live-badge"><span></span> Live diagnostic</span>
+          </div>
+
+          <div class="flow">
+            <div class="flow-step active" id="flowFrontend">
+              <span class="number">1</span>
+              <div><strong>Frontend</strong><small>Browser</small></div>
+            </div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="flow-step" id="flowBackend">
+              <span class="number">2</span>
+              <div><strong>Backend</strong><small>Node.js</small></div>
+            </div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="flow-step" id="flowSMTP">
+              <span class="number">3</span>
+              <div><strong>SMTP</strong><small>Authentication</small></div>
+            </div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="flow-step" id="flowEmail">
+              <span class="number">4</span>
+              <div><strong>Email</strong><small>Sending</small></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="status-card">
+          <div class="status-label">
+            <span class="status-dot" id="backendDot"></span>
+            <div>
+              <strong>Backend Status</strong>
+              <small>API connectivity</small>
+            </div>
+          </div>
+          <span id="backendStatus" class="status-value">Checking...</span>
+        </div>
+
+        <main id="MailMetrixTools">
+
+          <!-- SMTP TOOL -->
+          <section id="smtpTool" class="tool-panel">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">SMTP diagnostics</span>
+                <h2>Verify credentials & send a test</h2>
+                <p>Connect to your SMTP server, authenticate securely, and send a real test message.</p>
+              </div>
+              <span class="tool-chip">SMTP</span>
+            </div>
+
+            <section class="card">
+              <h2>SMTP Configuration</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="smtpHost">SMTP Host</label>
+                  <input id="smtpHost" type="text" placeholder="smtp.example.com" autocomplete="off" />
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpPort">SMTP Port</label>
+                  <input id="smtpPort" type="number" value="587" placeholder="587" />
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpSecurity">Security</label>
+                  <select id="smtpSecurity">
+                    <option value="starttls">STARTTLS · Port 587</option>
+                    <option value="ssl">SSL/TLS · Port 465</option>
+                    <option value="plain">Plain SMTP · Port 25</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpUser">SMTP Username</label>
+                  <input id="smtpUser" type="text" placeholder="username@example.com" autocomplete="off" />
+                </div>
+
+                <div class="form-group">
+                  <label for="fromEmail">From Email</label>
+                  <input id="fromEmail" type="email" placeholder="sender@example.com" autocomplete="off" />
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpPassword">SMTP Password</label>
+                  <div class="password-wrapper">
+                    <input id="smtpPassword" type="password" placeholder="Enter SMTP password" autocomplete="new-password" />
+                    <button type="button" id="togglePassword" class="password-toggle">Show</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2>Email Configuration</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="recipientName">Recipient Name</label>
+                  <input id="recipientName" type="text" placeholder="John Doe" autocomplete="off" />
+                </div>
+
+                <div class="form-group">
+                  <label for="recipientEmail">Recipient Email</label>
+                  <input id="recipientEmail" type="email" placeholder="john@example.com" autocomplete="off" />
+                </div>
+
+                <div class="form-group full">
+                  <label for="subject">Subject</label>
+                  <input id="subject" type="text" value="SMTP Test Email" placeholder="SMTP Test Email" />
+                </div>
+
+                <div class="form-group full">
+                  <label for="message">Message</label>
+                  <textarea id="message" rows="7" placeholder="This is a test email sent using the SMTP credentials provided above.">This is a test email sent using the SMTP credentials provided above.</textarea>
+                </div>
+              </div>
+            </section>
+
+            <button id="testButton" class="test-button" type="button">
+              <span>Test SMTP & Send Email</span>
+              <span class="button-arrow">→</span>
+            </button>
+
+            <section class="card stage-card">
+              <div class="card-heading">
+                <h2>Test Progress</h2>
+                <span class="muted-chip">3 stages</span>
+              </div>
+              <div class="stages">
+                <div class="stage" id="stageBackend">
+                  <div class="stage-icon">1</div>
+                  <div><strong>Frontend → Backend</strong><p>Waiting for test...</p></div>
+                </div>
+                <div class="stage" id="stageSMTP">
+                  <div class="stage-icon">2</div>
+                  <div><strong>SMTP Connection & Authentication</strong><p>Waiting for backend...</p></div>
+                </div>
+                <div class="stage" id="stageEmail">
+                  <div class="stage-icon">3</div>
+                  <div><strong>Email Sending</strong><p>Waiting for SMTP authentication...</p></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Result</h2>
+                <span class="muted-chip">Diagnostic output</span>
+              </div>
+              <div id="result" class="result waiting">
+                Enter your SMTP credentials and click <strong>Test SMTP & Send Email</strong>.
+              </div>
+            </section>
+          </section>
+
+          <!-- DNS TOOL -->
+          <section id="dnsTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">DNS diagnostics</span>
+                <h2>Inspect email authentication records</h2>
+                <p>Resolve MX, SPF, DMARC and an optional DKIM selector for any domain.</p>
+              </div>
+              <span class="tool-chip">DNS</span>
+            </div>
+
+            <section class="card">
+              <h2>Domain Configuration</h2>
+              <div class="form-grid dns-input-grid">
+                <div class="form-group">
+                  <label for="domain">Domain</label>
+                  <input id="domain" type="text" placeholder="example.com" autocomplete="off" />
+                </div>
+                <div class="form-group action-field">
+                  <label>&nbsp;</label>
+                  <button id="dnsButton" class="test-button" type="button">
+                    <span>Check Email DNS</span><span class="button-arrow">→</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>DNS Result</h2>
+                <span class="muted-chip">MX · SPF · DMARC · DKIM</span>
+              </div>
+              <div id="dnsResult" class="result waiting">Enter a domain and check MX, SPF and DMARC records.</div>
+            </section>
+          </section>
+
+          <!-- HEADER TOOL -->
+          <section id="headersTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">Header diagnostics</span>
+                <h2>Trace an email from source to delivery</h2>
+                <p>Paste raw headers to inspect authentication results, metadata, delivery hops and basic findings.</p>
+              </div>
+              <span class="tool-chip">HEADERS</span>
+            </div>
+
+            <section class="card">
+              <h2>Raw Email Headers</h2>
+              <div class="form-group full">
+                <label for="emailHeaders">Header Source</label>
+                <textarea id="emailHeaders" rows="18" placeholder="Paste the raw email headers here..."></textarea>
+              </div>
+              <button id="analyzeHeadersButton" class="test-button" type="button">
+                <span>Analyze Email Headers</span><span class="button-arrow">→</span>
+              </button>
+            </section>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Header Analysis</h2>
+                <span class="muted-chip">Parsed diagnostics</span>
+              </div>
+              <div id="headerResult" class="result waiting">Paste raw email headers and analyze them.</div>
+            </section>
+          </section>
+
+          <!-- DKIM & DMARC GENERATOR -->
+          <section id="generatorTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">Authentication generator</span>
+                <h2>Generate DKIM keys & DMARC policy</h2>
+                <p>Create a DKIM RSA key pair and a ready-to-publish DMARC TXT record from one focused form.</p>
+              </div>
+              <span class="tool-chip">DKIM + DMARC</span>
+            </div>
+
+            <section class="card">
+              <h2>Domain & DKIM Configuration</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="generatorDomain">Domain</label>
+                  <input id="generatorDomain" type="text" placeholder="example.com" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="dkimSelectorGenerator">DKIM Selector</label>
+                  <input id="dkimSelectorGenerator" type="text" value="MailMetrix" placeholder="MailMetrix" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="dkimKeySize">DKIM Key Size</label>
+                  <select id="dkimKeySize">
+                    <option value="1024">1024-bit RSA</option>
+                    <option value="2048" selected>2048-bit RSA</option>
+                    <option value="4096">4096-bit RSA</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2>DMARC Policy</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="dmarcPolicy">Policy (p)</label>
+                  <select id="dmarcPolicy">
+                    <option value="none" selected>none</option>
+                    <option value="quarantine">quarantine</option>
+                    <option value="reject">reject</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="dmarcSubdomainPolicy">Subdomain Policy (sp)</label>
+                  <select id="dmarcSubdomainPolicy">
+                    <option value="none" selected>none</option>
+                    <option value="quarantine">quarantine</option>
+                    <option value="reject">reject</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="dmarcAdkim">DKIM Alignment (adkim)</label>
+                  <select id="dmarcAdkim">
+                    <option value="r" selected>Relaxed (r)</option>
+                    <option value="s">Strict (s)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="dmarcAspf">SPF Alignment (aspf)</label>
+                  <select id="dmarcAspf">
+                    <option value="r" selected>Relaxed (r)</option>
+                    <option value="s">Strict (s)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="dmarcPct">Percentage (pct)</label>
+                  <input id="dmarcPct" type="number" min="0" max="100" value="100" />
+                </div>
+                <div class="form-group">
+                  <label for="dmarcFo">Failure Reporting (fo)</label>
+                  <select id="dmarcFo">
+                    <option value="0" selected>0 — aligned failure</option>
+                    <option value="1">1 — any failure</option>
+                    <option value="d">d — DKIM failure</option>
+                    <option value="s">s — SPF failure</option>
+                  </select>
+                </div>
+                <div class="form-group full">
+                  <label for="dmarcRua">Aggregate Reports (rua)</label>
+                  <input id="dmarcRua" type="text" placeholder="mailto:dmarc@example.com" autocomplete="off" />
+                </div>
+                <div class="form-group full">
+                  <label for="dmarcRuf">Forensic Reports (ruf)</label>
+                  <input id="dmarcRuf" type="text" placeholder="mailto:dmarc-forensic@example.com" autocomplete="off" />
+                </div>
+              </div>
+            </section>
+
+            <button id="generateAuthButton" class="test-button" type="button">
+              <span>Generate DKIM & DMARC</span><span class="button-arrow">→</span>
+            </button>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Generated Records</h2>
+                <span class="muted-chip">DNS ready</span>
+              </div>
+              <div id="generatorResult" class="result waiting">Enter your domain and generate the DKIM key pair and DMARC record.</div>
+            </section>
+          </section>
+
+        </main>
+
+        <footer class="footer">
+          <span>MailMetrix</span>
+          <span>SMTP &amp; Email Infrastructure Diagnostics</span>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
