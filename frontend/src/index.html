@@ -22,9 +22,8 @@
 
     <div class="container">
       <header class="hero">
-        <div class="eyebrow"><span class="eyebrow-dot"></span> Mail infrastructure toolkit</div>
         <h1>Mail<span>Metrix</span></h1>
-        <p class="hero-tagline">A Self-Hosted Service</p>
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Self Hosted Mail infrastructure toolkit</div>
         <p class="hero-description">SMTP, DNS, DKIM, DMARC & email header diagnostics in one focused workspace.</p>
       </header>
 
@@ -281,22 +280,57 @@
             <div class="tool-intro">
               <div>
                 <span class="section-kicker">Authentication generator</span>
-                <h2>Generate DKIM keys & DMARC policy</h2>
-                <p>Create a DKIM RSA key pair and a ready-to-publish DMARC TXT record from one focused form.</p>
+                <h2>Generate SPF, DKIM keys & DMARC policy</h2>
+                <p>Create your domain's SPF record, a DKIM RSA key pair, and a ready-to-publish DMARC TXT record from one focused form.</p>
               </div>
-              <span class="tool-chip">DKIM + DMARC</span>
+              <span class="tool-chip">SPF + DKIM + DMARC</span>
             </div>
 
             <section class="card">
-              <h2>Domain & DKIM Configuration</h2>
+              <h2>Domain & SPF Configuration</h2>
               <div class="form-grid">
                 <div class="form-group">
                   <label for="generatorDomain">Domain</label>
                   <input id="generatorDomain" type="text" placeholder="example.com" autocomplete="off" />
                 </div>
                 <div class="form-group">
+                  <label for="spfAllMechanism">SPF Enforcement (-all / ~all)</label>
+                  <select id="spfAllMechanism">
+                    <option value="~all" selected>SoftFail (~all)</option>
+                    <option value="-all">HardFail (-all)</option>
+                    <option value="?all">Neutral (?all)</option>
+                    <option value="+all">Pass (+all - Insecure)</option>
+                  </select>
+                </div>
+                <div class="form-group full">
+                  <label for="spfIncludes">Included External Providers (include:)</label>
+                  <input id="spfIncludes" type="text" placeholder="_spf.google.com, mailgun.org" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="spfIp4">Allowed IPv4 Addresses (ip4:)</label>
+                  <input id="spfIp4" type="text" placeholder="192.0.2.1, 203.0.113.0/24" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="spfIp6">Allowed IPv6 Addresses (ip6:)</label>
+                  <input id="spfIp6" type="text" placeholder="2001:db8::1" autocomplete="off" />
+                </div>
+                <div class="form-group checkbox-group full" style="display: flex; gap: 24px; align-items: center; margin-top: 12px;">
+                  <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.875rem; color: inherit; user-select: none;">
+                    <input id="spfAllowA" type="checkbox" style="width: 1rem; height: 1rem; accent-color: #6366f1; cursor: pointer; border-radius: 4px;" /> Include Domain A Record (`a`)
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.875rem; color: inherit; user-select: none;">
+                    <input id="spfAllowMX" type="checkbox" checked style="width: 1rem; height: 1rem; accent-color: #6366f1; cursor: pointer; border-radius: 4px;" /> Include Domain MX Records (`mx`)
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2>DKIM Configuration</h2>
+              <div class="form-grid">
+                <div class="form-group">
                   <label for="dkimSelectorGenerator">DKIM Selector</label>
-                  <input id="dkimSelectorGenerator" type="text" value="MailMetrix" placeholder="MailMetrix" autocomplete="off" />
+                  <input id="dkimSelectorGenerator" type="text" value="default" placeholder="default" autocomplete="off" />
                 </div>
                 <div class="form-group">
                   <label for="dkimKeySize">DKIM Key Size</label>
@@ -357,17 +391,17 @@
                 </div>
                 <div class="form-group full">
                   <label for="dmarcRua">Aggregate Reports (rua)</label>
-                  <input id="dmarcRua" type="text" placeholder="mailto:dmarc@example.com" autocomplete="off" />
+                  <input id="dmarcRua" type="text" placeholder="dmarc@example.com" autocomplete="off" />
                 </div>
                 <div class="form-group full">
                   <label for="dmarcRuf">Forensic Reports (ruf)</label>
-                  <input id="dmarcRuf" type="text" placeholder="mailto:dmarc-forensic@example.com" autocomplete="off" />
+                  <input id="dmarcRuf" type="text" placeholder="dmarc-forensic@example.com" autocomplete="off" />
                 </div>
               </div>
             </section>
 
             <button id="generateAuthButton" class="test-button" type="button">
-              <span>Generate DKIM & DMARC</span><span class="button-arrow">→</span>
+              <span>Generate SPF, DKIM & DMARC</span><span class="button-arrow">→</span>
             </button>
 
             <section class="card result-card">
@@ -375,7 +409,7 @@
                 <h2>Generated Records</h2>
                 <span class="muted-chip">DNS ready</span>
               </div>
-              <div id="generatorResult" class="result waiting">Enter your domain and generate the DKIM key pair and DMARC record.</div>
+              <div id="generatorResult" class="result waiting">Enter your domain and generate your complete email authentication bundle.</div>
             </section>
           </section>
 
@@ -383,7 +417,7 @@
 
         <footer class="footer">
           <span>MailMetrix</span>
-          <span>SMTP &amp; Email Infrastructure Diagnostics</span>
+          <span>SMTP & Email Infrastructure Diagnostics</span>
         </footer>
       </div>
     </div>

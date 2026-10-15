@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const SUPPORTED_BITS = [1024, 2048, 4096];
 const DMARC_POLICIES = ["none", "quarantine", "reject"];
 const ALIGNMENT = ["r", "s"];
+const SPF_ALL_MECHANISMS = ["-all", "~all", "?all", "+all"];
 
 function clean(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -87,6 +88,67 @@ function generateDMARC(domain, options) {
   };
 }
 
+function generateSPF(domain, options) {
+  const mechanisms = ["v=spf1"];
+
+  // Optional flags for A and MX mechanisms
+  if (options.allowA) {
+    mechanisms.push("a");
+  }
+  if (options.allowMX) {
+    mechanisms.push("mx");
+  }
+
+  // Handle IPv4 addresses/subnets (string or array)
+  if (options.ip4) {
+    const ip4List = Array.isArray(options.ip4)
+      ? options.ip4
+      : options.ip4.split(/[\s,]+/).map(i => clean(i)).filter(Boolean);
+
+    for (const ip of ip4List) {
+      if (ip) mechanisms.push(`ip4:${ip}`);
+    }
+  }
+
+  // Handle IPv6 addresses/subnets (string or array)
+  if (options.ip6) {
+    const ip6List = Array.isArray(options.ip6)
+      ? options.ip6
+      : options.ip6.split(/[\s,]+/).map(i => clean(i)).filter(Boolean);
+
+    for (const ip of ip6List) {
+      if (ip) mechanisms.push(`ip6:${ip}`);
+    }
+  }
+
+  // Handle included third-party domains (e.g., _spf.google.com)
+  const incRaw = options.includes || options.include;
+  if (incRaw) {
+    const incList = Array.isArray(incRaw)
+      ? incRaw
+      : incRaw.split(/[\s,]+/).map(i => clean(i)).filter(Boolean);
+
+    for (const inc of incList) {
+      const validInc = validDomain(inc);
+      if (validInc) {
+        mechanisms.push(`include:${validInc}`);
+      }
+    }
+  }
+
+  // Final all mechanism (default to ~all for softfail)
+  const allVal = SPF_ALL_MECHANISMS.includes(options.allMechanism) ? options.allMechanism : "~all";
+  mechanisms.push(allVal);
+
+  const record = mechanisms.join(" ");
+
+  return {
+    hostname: domain,
+    record,
+    dnsRecord: `${domain} IN TXT "${record}"`
+  };
+}
+
 function generateRecords(input) {
   const domain = validDomain(input.domain);
   const selector = validSelector(input.selector || "MailMetrix");
@@ -102,6 +164,7 @@ function generateRecords(input) {
     return { httpStatus: 400, body: { success: false, error: "DKIM key size must be 1024, 2048 or 4096 bits." } };
   }
 
+  const spf = generateSPF(domain, input);
   const dkim = generateDKIM(domain, selector, keySize);
   const dmarc = generateDMARC(domain, input);
 
@@ -109,9 +172,10 @@ function generateRecords(input) {
     httpStatus: 200,
     body: {
       success: true,
+      spf,
       dkim,
       dmarc,
-      warning: "Keep the DKIM private key secret. Publish only the DKIM public key in DNS."
+      warning: "Keep the DKIM private key secret. Publish only the SPF, DKIM public key, and DMARC records in DNS."
     }
   };
 }
