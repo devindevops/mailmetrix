@@ -93,7 +93,7 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 1px solid rgba(99, 91, 255, .15);
   border-radius: 999px;
   color: #5d57bc;
-  background: rgba(255, 255, 255, .68);
+  background: rgb(255, 255, 255);
   box-shadow: 0 6px 20px rgba(74, 74, 130, .05);
   font-size: 11px;
   font-weight: 700;
@@ -163,7 +163,7 @@ button { -webkit-tap-highlight-color: transparent; }
   padding: 6px;
   border: 1px solid rgba(224, 229, 239, .95);
   border-radius: 17px;
-  background: rgba(255,255,255,.74);
+  background: rgba(255,255,255);
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(18px);
 }
