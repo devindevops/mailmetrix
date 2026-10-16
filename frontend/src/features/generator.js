@@ -86,10 +86,10 @@ export function initGenerator() {
           ${copyBlock("DKIM Private Key — KEEP SECRET", data.dkim.privateKey, "private-key")}
         </div>
         <div class="generator-meta">
-          <div><span>SPF Hostname</span><strong>${escapeHtml(data.spf.hostname)}</strong></div>
-          <div><span>DKIM Hostname</span><strong>${escapeHtml(data.dkim.hostname)}</strong></div>
-          <div><span>Key Size</span><strong>${escapeHtml(data.dkim.keySize)}-bit RSA</strong></div>
-          <div><span>DMARC Hostname</span><strong>${escapeHtml(data.dmarc.hostname)}</strong></div>
+          <div><span>SPF Hostname </span><strong>${escapeHtml(data.spf.hostname)}</strong></div>
+          <div><span>DKIM Hostname </span><strong>${escapeHtml(data.dkim.hostname)}</strong></div>
+          <div><span>Key Size </span><strong>${escapeHtml(data.dkim.keySize)}-bit RSA</strong></div>
+          <div><span>DMARC Hostname </span><strong>${escapeHtml(data.dmarc.hostname)}</strong></div>
         </div>
         <div class="generator-warning">${escapeHtml(data.warning)}</div>`;
 

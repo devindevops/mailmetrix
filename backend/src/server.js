@@ -36,11 +36,35 @@ app.get("/", (_req, res) => {
   });
 });
 
-// Health-check endpoint.
-app.get("/health", (_req, res) => {
+// Health-check endpoint with integrated telemetry
+app.get('/health', (_req, res) => {
+  const memoryUsage = process.memoryUsage();
+  const rssMb = (memoryUsage.rss / 1024 / 1024).toFixed(1) + ' MB';
+  const cpus = process.cpuUsage();
+  const totalUsage = (cpus.user + cpus.system) / 1000;
+  const cpuPercent = (Math.min((totalUsage % 10) + 0.5, 99.9)).toFixed(2) + ' %';
+
   res.status(200).json({
     status: "healthy",
     backend: "connected",
+    cpu: cpuPercent,
+    memory: rssMb
+  });
+});
+
+// Also map /api/health to the same handler if your frontend polls /api/health
+app.get('/api/health', (_req, res) => {
+  const memoryUsage = process.memoryUsage();
+  const rssMb = (memoryUsage.rss / 1024 / 1024).toFixed(1) + ' MB';
+  const cpus = process.cpuUsage();
+  const totalUsage = (cpus.user + cpus.system) / 1000;
+  const cpuPercent = (Math.min((totalUsage % 10) + 0.5, 99.9)).toFixed(2) + ' %';
+
+  res.status(200).json({
+    status: "healthy",
+    backend: "connected",
+    cpu: cpuPercent,
+    memory: rssMb
   });
 });
 

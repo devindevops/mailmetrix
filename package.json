@@ -1,0 +1,10 @@
+{
+  "name": "mailmetrix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MailMetrix — SMTP, DNS and email header diagnostics workspace.",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "version": "node scripts/sync-version.js"
+  }
+}
