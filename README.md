@@ -78,22 +78,21 @@ MailMetrix separates the backend API from the frontend application.
 
 ```text
 backend/
-└── src/
-    ├── Dockerfile
-    ├── package.json
-    ├── package-lock.json
-    └── src/
-        ├── routes/
-        │   ├── dns.js
-        │   ├── generator.js
-        │   ├── headers.js
-        │   └── smtp.js
-        ├── services/
-        │   ├── dns.js
-        │   ├── generator.js
-        │   ├── headers.js
-        │   └── smtp.js
-        └── server.js
+├── Dockerfile
+├── package.json
+├── package-lock.json
+└── src
+    ├── routes
+    │   ├── dns.js
+    │   ├── generator.js
+    │   ├── headers.js
+    │   └── smtp.js
+    ├── server.js
+    └── services
+        ├── dns.js
+        ├── generator.js
+        ├── headers.js
+        └── smtp.js
 ```
 
 ### Frontend
@@ -102,21 +101,28 @@ backend/
 frontend/
 ├── Dockerfile
 ├── nginx.conf
-└── src/
+└── src
     ├── app.js
-    ├── features/
-    │   ├── dns.js
-    │   ├── flow.js
-    │   ├── generator.js
-    │   ├── headers.js
-    │   ├── smtp.js
-    │   ├── tabs.js
-    │   └── utils.js
-    ├── icons/
+    ├── features
+    │   ├── dns.js
+    │   ├── flow.js
+    │   ├── generator.js
+    │   ├── headers.js
+    │   ├── smtp.js
+    │   ├── tabs.js
+    │   └── utils.js
+    ├── icons
+    │   ├── android-chrome-192x192.png
+    │   ├── android-chrome-512x512.png
+    │   ├── apple-touch-icon.png
+    │   ├── favicon-16x16.png
+    │   ├── favicon-32x32.png
+    │   └── favicon.ico
     ├── index.html
     ├── sitemap.xml
     ├── site.webmanifest
-    └── style.css
+    ├── style.css
+    └── version.json
 ```
 
 `server.js` and `app.js` serve as the backend and frontend bootstrap/orchestration files.
@@ -124,6 +130,88 @@ frontend/
 Backend routes and services separate API handling from feature logic. Frontend feature modules organize the corresponding user-interface behavior.
 
 The frontend intentionally uses a single-page HTML shell, avoiding unnecessary template and loading complexity.
+
+## Version Management
+
+MailMetrix includes a version synchronization script at `scripts/sync-version.js` to keep version information consistent across the project.
+
+The root `package.json` is the single source of truth for the application version.
+
+### What the script updates
+
+When executed through npm's `version` lifecycle hook, the script synchronizes the version across the following files:
+
+| File | Purpose |
+|---|---|
+| `package.json` | Defines the source version |
+| `frontend/src/version.json` | Provides version information to the frontend footer |
+| `backend/package.json` | Keeps the backend package version synchronized |
+| `backend/package-lock.json` | Updates the backend lockfile version metadata |
+
+The script also attempts to stage the modified files using `git add`, allowing them to be included in the version commit created by npm.
+
+### Bumping the version
+
+From the project root, run one of the following commands:
+
+```bash
+npm version patch
+```
+
+For a minor release:
+
+```bash
+npm version minor
+```
+
+For a major release:
+
+```bash
+npm version major
+```
+
+These commands follow semantic versioning conventions:
+
+- **Patch:** Bug fixes and backward-compatible corrections, such as `1.0.0` → `1.0.1`.
+- **Minor:** Backward-compatible feature additions, such as `1.0.0` → `1.1.0`.
+- **Major:** Changes that introduce breaking behavior, such as `1.0.0` → `2.0.0`.
+
+Use the version increment that reflects the actual changes in the release.
+
+### How synchronization works
+
+When npm invokes the `version` lifecycle hook, the script:
+
+1. Reads the updated version from the root `package.json`.
+2. Updates `frontend/src/version.json`, including its build timestamp.
+3. Synchronizes the version in the backend `package.json`, if present.
+4. Updates the corresponding version metadata in the backend `package-lock.json`, if present.
+5. Attempts to stage the modified files for the version commit.
+
+The script is designed to run automatically when the root package's npm version lifecycle is configured to invoke it.
+
+**Important:** Verify that the root `package.json` contains the appropriate `version` lifecycle configuration, such as:
+
+```json
+{
+  "scripts": {
+    "version": "node scripts/sync-version.js"
+  }
+}
+```
+
+If the `version` script already exists, integrate the command into the existing configuration rather than replacing it.
+
+### Release considerations
+
+- Run version commands from the repository root.
+- Ensure the working tree is in an appropriate state before creating a release.
+- Review the generated changes before publishing.
+- Confirm that the frontend footer displays the updated version.
+- Ensure the backend package and lockfile remain synchronized.
+
+The script updates local project files; it does not publish Docker images, create a GitHub Release, or deploy the application by itself.
+
 
 ## Requirements
 
