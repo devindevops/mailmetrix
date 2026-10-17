@@ -1,0 +1,77 @@
+name: MailMetrix Website
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mailmetrix-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Validate website
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate landing page
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s docs/index.html
+          grep -q '<title>' docs/index.html
+          grep -q 'lang="en"' docs/index.html
+
+          echo "Landing page checks passed."
+
+      - name: Prepare GitHub Pages assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SOURCE="frontend/src/icons"
+          DESTINATION="docs/icons"
+
+          test -s "$SOURCE/favicon.ico"
+          test -s "$SOURCE/favicon-16x16.png"
+          test -s "$SOURCE/favicon-32x32.png"
+          test -s "$SOURCE/apple-touch-icon.png"
+
+          mkdir -p "$DESTINATION"
+
+          cp "$SOURCE/favicon.ico" "$DESTINATION/"
+          cp "$SOURCE/favicon-16x16.png" "$DESTINATION/"
+          cp "$SOURCE/favicon-32x32.png" "$DESTINATION/"
+          cp "$SOURCE/apple-touch-icon.png" "$DESTINATION/"
+
+          echo "GitHub Pages assets prepared."
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+
+  deploy:
+    name: Deploy website
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

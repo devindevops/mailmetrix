@@ -11,7 +11,7 @@ router.post("/", (req, res) => {
     console.error("Generator error:", error);
     return res.status(500).json({
       success: false,
-      error: "Unable to generate DKIM and DMARC records."
+      error: "Unable to generate SPF, DKIM and DMARC records."
     });
   }
 });

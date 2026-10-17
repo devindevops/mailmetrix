@@ -21,6 +21,12 @@ export function initGenerator() {
 
     const payload = {
       domain,
+      allowA: $("spfAllowA")?.checked || false,
+      allowMX: $("spfAllowMX")?.checked || false,
+      ip4: field("spfIp4"),
+      ip6: field("spfIp6"),
+      includes: field("spfIncludes"),
+      allMechanism: field("spfAllMechanism"),
       selector: field("dkimSelectorGenerator"),
       keySize: Number(field("dkimKeySize")),
       policy: field("dmarcPolicy"),
@@ -34,12 +40,12 @@ export function initGenerator() {
     };
 
     button.disabled = true;
-    button.innerHTML = `<span>Generating keys...</span>`;
+    button.innerHTML = `<span>Generating records...</span>`;
     startFlow();
     flowSuccess("flowFrontend");
     flowActive("flowBackend");
     output.className = "result waiting";
-    output.textContent = `Generating a ${payload.keySize}-bit RSA DKIM key pair and DMARC record...`;
+    output.textContent = `Generating SPF, ${payload.keySize}-bit RSA DKIM key pair, and DMARC record...`;
 
     try {
       const response = await fetch("/api/generator", {
@@ -70,18 +76,20 @@ export function initGenerator() {
       flowSuccess("flowEmail");
       output.className = "result success";
       output.innerHTML = `
-        <div class="result-title">DKIM &amp; DMARC Generated</div>
+        <div class="result-title">SPF, DKIM &amp; DMARC Generated</div>
         <div class="result-message">Records generated for <strong>${escapeHtml(data.dkim.domain)}</strong>.</div>
         <div class="generator-grid">
+          ${copyBlock("SPF DNS Record", data.spf.dnsRecord)}
           ${copyBlock("DKIM DNS Record", data.dkim.dnsRecord)}
           ${copyBlock("DMARC DNS Record", data.dmarc.dnsRecord)}
           ${copyBlock("DKIM Public Key", data.dkim.publicKey)}
           ${copyBlock("DKIM Private Key — KEEP SECRET", data.dkim.privateKey, "private-key")}
         </div>
         <div class="generator-meta">
-          <div><span>DKIM Hostname</span><strong>${escapeHtml(data.dkim.hostname)}</strong></div>
-          <div><span>Key Size</span><strong>${escapeHtml(data.dkim.keySize)}-bit RSA</strong></div>
-          <div><span>DMARC Hostname</span><strong>${escapeHtml(data.dmarc.hostname)}</strong></div>
+          <div><span>SPF Hostname </span><strong>${escapeHtml(data.spf.hostname)}</strong></div>
+          <div><span>DKIM Hostname </span><strong>${escapeHtml(data.dkim.hostname)}</strong></div>
+          <div><span>Key Size </span><strong>${escapeHtml(data.dkim.keySize)}-bit RSA</strong></div>
+          <div><span>DMARC Hostname </span><strong>${escapeHtml(data.dmarc.hostname)}</strong></div>
         </div>
         <div class="generator-warning">${escapeHtml(data.warning)}</div>`;
 
@@ -102,7 +110,7 @@ export function initGenerator() {
       output.innerHTML = `<div class="result-title">Request Failed</div><div class="result-message">${escapeHtml(error.message)}</div>`;
     } finally {
       button.disabled = false;
-      button.innerHTML = `<span>Generate DKIM &amp; DMARC</span><span class="button-arrow">→</span>`;
+      button.innerHTML = `<span>Generate SPF, DKIM &amp; DMARC</span><span class="button-arrow">→</span>`;
     }
   });
 }
