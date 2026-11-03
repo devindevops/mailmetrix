@@ -534,8 +534,8 @@ select option { background: var(--surface); color: var(--text); }
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
-:root[data-theme="dark"] .test-button { color: #0b0d14; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .test-button { color: #0b0d14; } }
+:root[data-theme="dark"] .test-button { color: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .test-button { color: var(--text); } }
 .test-button:hover { background: var(--primary-hover); transform: translateY(-1px); }
 .test-button:active { transform: none; }
 .test-button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
@@ -698,7 +698,7 @@ select option { background: var(--surface); color: var(--text); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: 12px;
+  /* margin-left: 12px; */
   padding: 5px 11px 5px 9px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
