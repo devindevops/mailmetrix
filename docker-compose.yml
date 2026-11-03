@@ -1,10 +1,10 @@
-name: MailMetrix
+name: mailmetrix
 
 services:
   backend:
     build:
       context: ./backend
-    container_name: MailMetrix-backend
+    container_name: mailmetrix-backend
     env_file:
       - .env
 
@@ -40,7 +40,7 @@ services:
       start_period: 15s
 
     networks:
-      - mailmetrix-network
+      - network
 
     logging:
       driver: json-file
@@ -62,7 +62,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: MailMetrix-frontend
+    container_name: mailmetrix-frontend
     env_file:
       - .env
     environment:
@@ -95,7 +95,7 @@ services:
       start_period: 10s
 
     networks:
-      - mailmetrix-network
+      - network
 
     logging:
       driver: json-file
@@ -113,5 +113,5 @@ services:
           path: ./frontend/package.json
 
 networks:
-  mailmetrix-network:
+  network:
     driver: bridge
