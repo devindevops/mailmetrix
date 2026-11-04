@@ -16,8 +16,9 @@ WORKDIR /app
 RUN apk upgrade --no-cache
 
 # Production dependencies only (devDependencies are not installed).
+# Omitting lifecycle scripts prevents untrusted packages from running arbitrary code during install.
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --chown=node:node src ./src
 

@@ -41,30 +41,30 @@ const blocked = new net.BlockList();
 // IPv4
 [
   ["0.0.0.0", 8],          // "this" network
-  ["10.0.0.0", 8],         // RFC 1918
-  ["100.64.0.0", 10],      // CGNAT (often used for internal infra)
+  ["10.0.0.0", 8],         // NOSONAR: S1313 - RFC 1918
+  ["100.64.0.0", 10],      // NOSONAR: S1313 - CGNAT (often used for internal infra)
   ["127.0.0.0", 8],        // loopback
-  ["169.254.0.0", 16],     // link-local + cloud metadata
-  ["172.16.0.0", 12],      // RFC 1918
-  ["192.0.0.0", 24],       // IETF protocol assignments
-  ["192.0.2.0", 24],       // TEST-NET-1
-  ["192.168.0.0", 16],     // RFC 1918
-  ["198.18.0.0", 15],      // benchmarking
-  ["198.51.100.0", 24],    // TEST-NET-2
-  ["203.0.113.0", 24],     // TEST-NET-3
-  ["224.0.0.0", 4],        // multicast
-  ["240.0.0.0", 4]         // reserved (incl. 255.255.255.255)
+  ["169.254.0.0", 16],     // NOSONAR: S1313 - link-local + cloud metadata
+  ["172.16.0.0", 12],      // NOSONAR: S1313 - RFC 1918
+  ["192.0.0.0", 24],       // NOSONAR: S1313 - IETF protocol assignments
+  ["192.0.2.0", 24],       // NOSONAR: S1313 - TEST-NET-1
+  ["192.168.0.0", 16],     // NOSONAR: S1313 - RFC 1918
+  ["198.18.0.0", 15],      // NOSONAR: S1313 - benchmarking
+  ["198.51.100.0", 24],    // NOSONAR: S1313 - TEST-NET-2
+  ["203.0.113.0", 24],     // NOSONAR: S1313 - TEST-NET-3
+  ["224.0.0.0", 4],        // NOSONAR: S1313 - multicast
+  ["240.0.0.0", 4]         // NOSONAR: S1313 - reserved (incl. 255.255.255.255)
 ].forEach(([addr, prefix]) => blocked.addSubnet(addr, prefix, "ipv4"));
 
 // IPv6
 blocked.addAddress("::", "ipv6");              // unspecified
 blocked.addAddress("::1", "ipv6");             // loopback
 [
-  ["fc00::", 7],       // unique local
-  ["fe80::", 10],      // link-local
-  ["ff00::", 8],       // multicast
-  ["64:ff9b::", 96],   // NAT64 (can embed private IPv4)
-  ["2001:db8::", 32]   // documentation
+  ["fc00::", 7],       // NOSONAR: S1313 - unique local
+  ["fe80::", 10],      // NOSONAR: S1313 - link-local
+  ["ff00::", 8],       // NOSONAR: S1313 - multicast
+  ["64:ff9b::", 96],   // NOSONAR: S1313 - NAT64 (can embed private IPv4)
+  ["2001:db8::", 32]   // NOSONAR: S1313 - documentation
 ].forEach(([addr, prefix]) => blocked.addSubnet(addr, prefix, "ipv6"));
 
 function isBlockedIp(ip) {
@@ -80,8 +80,8 @@ function isBlockedIp(ip) {
 
     const hex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
     if (hex) {
-      const hi = parseInt(hex[1], 16);
-      const lo = parseInt(hex[2], 16);
+      const hi = Number.parseInt(hex[1], 16);
+      const lo = Number.parseInt(hex[2], 16);
       return isBlockedIp(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
     }
 

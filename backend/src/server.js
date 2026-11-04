@@ -135,11 +135,11 @@ app.get("/api/health", healthHandler);
 // is defense in depth. Anything else falls through to the normal 404.
 const internalNets = new net.BlockList();
 internalNets.addSubnet("127.0.0.0", 8, "ipv4");
-internalNets.addSubnet("10.0.0.0", 8, "ipv4");
-internalNets.addSubnet("172.16.0.0", 12, "ipv4");
-internalNets.addSubnet("192.168.0.0", 16, "ipv4");
+internalNets.addSubnet("10.0.0.0", 8, "ipv4");     // NOSONAR: S1313 - RFC 1918
+internalNets.addSubnet("172.16.0.0", 12, "ipv4");  // NOSONAR: S1313 - RFC 1918
+internalNets.addSubnet("192.168.0.0", 16, "ipv4"); // NOSONAR: S1313 - RFC 1918
 internalNets.addAddress("::1", "ipv6");
-internalNets.addSubnet("fc00::", 7, "ipv6");
+internalNets.addSubnet("fc00::", 7, "ipv6");       // NOSONAR: S1313 - unique local
 
 function isInternalAddress(addr) {
   if (!addr) return false;

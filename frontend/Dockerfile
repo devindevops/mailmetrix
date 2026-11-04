@@ -8,13 +8,17 @@
 # and let Renovate/Dependabot bump it, otherwise it never receives updates.
 FROM nginxinc/nginx-unprivileged:1.30-alpine
 
-# Apply Alpine security updates (needs root), then drop privileges again.
+# Apply Alpine security updates (needs root).
 USER root
 RUN apk upgrade --no-cache
-USER nginx
 
-COPY --chown=nginx:nginx src /usr/share/nginx/html
-COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
+# Copy assets and configuration with root ownership so the unprivileged nginx worker
+# can read them but cannot modify or tamper with them at runtime.
+COPY src /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Drop privileges to the unprivileged "nginx" user (uid 101).
+USER nginx
 
 EXPOSE 8080
 
