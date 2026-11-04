@@ -108,3 +108,5 @@ InitTestScene*.unity*
 .env
 .kilo/
 node_modules/
+*.zip
+SECURITY_AUDIT.md

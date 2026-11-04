@@ -1,9 +1,56 @@
-const crypto = require("crypto");
+const crypto = require("node:crypto");
+const { promisify } = require("node:util");
+
+const generateKeyPairAsync = promisify(crypto.generateKeyPair);
 
 const SUPPORTED_BITS = [1024, 2048, 4096];
 const DMARC_POLICIES = ["none", "quarantine", "reject"];
 const ALIGNMENT = ["r", "s"];
 const SPF_ALL_MECHANISMS = ["-all", "~all", "?all", "+all"];
+
+/* ------------------------------------------------------------------ */
+/* Keygen concurrency limiter (SEC-02 / CWE-400)                       */
+/*                                                                     */
+/* generateKeyPair runs on the libuv threadpool (default size 4), which*/
+/* is shared with fs, zlib and dns.lookup. Without a cap, a burst of   */
+/* 4096-bit requests would still saturate the pool and stall those     */
+/* operations, so we bound in-flight jobs and the waiting queue.       */
+/* ------------------------------------------------------------------ */
+
+const positiveInt = (value, fallback) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+};
+
+const MAX_CONCURRENT_KEYGEN = positiveInt(process.env.DKIM_MAX_CONCURRENT, 2);
+const MAX_QUEUED_KEYGEN = positiveInt(process.env.DKIM_MAX_QUEUE, 10);
+
+let activeKeygens = 0;
+const keygenWaiters = [];
+
+function acquireKeygenSlot() {
+  if (activeKeygens < MAX_CONCURRENT_KEYGEN) {
+    activeKeygens++;
+    return Promise.resolve();
+  }
+  if (keygenWaiters.length >= MAX_QUEUED_KEYGEN) {
+    return Promise.reject(
+      Object.assign(new Error("Key generation is busy"), { code: "KEYGEN_BUSY" })
+    );
+  }
+  return new Promise((resolve) => keygenWaiters.push(resolve));
+}
+
+function releaseKeygenSlot() {
+  const next = keygenWaiters.shift();
+  if (next) {
+    next(); // hand the slot straight to the next waiter (activeKeygens unchanged)
+  } else {
+    activeKeygens--;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 
 function clean(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -34,12 +81,20 @@ function normalizeReportInterval(value) {
   return Number.isInteger(number) && number >= 3600 && number <= 86400 ? number : 86400;
 }
 
-function generateDKIM(domain, selector, keySize) {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
-    modulusLength: keySize,
-    publicKeyEncoding: { type: "spki", format: "der" },
-    privateKeyEncoding: { type: "pkcs8", format: "pem" }
-  });
+async function generateDKIM(domain, selector, keySize) {
+  await acquireKeygenSlot();
+
+  let publicKey;
+  let privateKey;
+  try {
+    ({ publicKey, privateKey } = await generateKeyPairAsync("rsa", {
+      modulusLength: keySize,
+      publicKeyEncoding: { type: "spki", format: "der" },
+      privateKeyEncoding: { type: "pkcs8", format: "pem" }
+    }));
+  } finally {
+    releaseKeygenSlot();
+  }
 
   const publicKeyBase64 = publicKey.toString("base64");
   const dnsRecord = `${selector}._domainkey.${domain} IN TXT "v=DKIM1; k=rsa; p=${publicKeyBase64}"`;
@@ -149,7 +204,7 @@ function generateSPF(domain, options) {
   };
 }
 
-function generateRecords(input) {
+async function generateRecords(input) {
   const domain = validDomain(input.domain);
   const selector = validSelector(input.selector || "MailMetrix");
   const keySize = Number(input.keySize || 2048);
@@ -165,8 +220,26 @@ function generateRecords(input) {
   }
 
   const spf = generateSPF(domain, input);
-  const dkim = generateDKIM(domain, selector, keySize);
   const dmarc = generateDMARC(domain, input);
+
+  let dkim;
+  try {
+    dkim = await generateDKIM(domain, selector, keySize);
+  } catch (error) {
+    if (error.code === "KEYGEN_BUSY") {
+      return {
+        httpStatus: 503,
+        body: {
+          success: false,
+          error: "The server is busy generating keys. Please try again shortly."
+        }
+      };
+    }
+    return {
+      httpStatus: 500,
+      body: { success: false, error: "Failed to generate DKIM key pair." }
+    };
+  }
 
   return {
     httpStatus: 200,
@@ -180,4 +253,4 @@ function generateRecords(input) {
   };
 }
 
-module.exports = { generateRecords };
+module.exports = { generateRecords, generateDKIM };
