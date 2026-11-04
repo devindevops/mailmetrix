@@ -3,10 +3,10 @@
 # 1.30 is the current stable nginx line. Do not use the floating "nginx:alpine".
 #
 # For fully reproducible builds, also pin the digest:
-#   docker buildx imagetools inspect nginxinc/nginx-unprivileged:1.30-alpine
-#   FROM nginxinc/nginx-unprivileged:1.30-alpine@sha256:<digest>
+#   docker buildx imagetools inspect nginx/nginx-unprivileged:alpine
+#   FROM nginx/nginx-unprivileged:alpine@sha256:<digest>
 # and let Renovate/Dependabot bump it, otherwise it never receives updates.
-FROM nginxinc/nginx-unprivileged:1.30-alpine
+FROM nginx/nginx-unprivileged:alpine
 
 # Apply Alpine security updates (needs root).
 USER root
