@@ -10,6 +10,12 @@ Run MailMetrix in your own environment and maintain control over how you deploy 
 
 > **Important:** MailMetrix has **no built-in user authentication**. Do not expose it to the public internet without placing authentication in front of it. See [Protect access to your deployment](#protect-access-to-your-deployment).
 
+> **Authorized use only:** Use MailMetrix only against systems, domains, and mail servers you own or are explicitly authorized to test.
+
+> **Checked before release:** Changes are validated with CodeQL code scanning, CI code and dependency validation, Docker validation, and a SonarCloud quality gate. See [Quality and Security Checks](#quality-and-security-checks).
+
+> **Privacy:** MailMetrix is self-hosted. The maintainers do not receive your data. See the [Privacy Policy](#privacy-policy).
+
 ## Why MailMetrix?
 
 Troubleshooting email infrastructure can require SMTP credentials, DNS configuration details, and potentially sensitive email headers.
@@ -459,6 +465,12 @@ For example:
 
 Review the source code to understand which services receive requests or data during each operation.
 
+### Use it only on systems you are authorized to test
+
+MailMetrix can connect to mail servers, query DNS, and send test emails. Use it only against infrastructure you own or have explicit permission to test, and only send test emails to recipients who expect them. Using it to probe, harass, or send unsolicited email through systems you do not control may violate the law or the terms of those services. You are responsible for how you use it.
+
+For what data an instance handles and where it goes, see the [Privacy Policy](#privacy-policy).
+
 ### Report security vulnerabilities
 
 Please do not publish exploitable security vulnerabilities or exposed credentials in public issues.
@@ -508,6 +520,81 @@ RATE_LIMIT_SMTP=10
 
 Keep `.env.example` in sync with this list when you add or change settings.
 
+## Quality and Security Checks
+
+The following automated checks are run on changes before a release:
+
+| Check | What it covers |
+|---|---|
+| **CodeQL** (GitHub code scanning) | Static analysis of the source code for security vulnerabilities and coding errors. |
+| **MailMetrix CI: Code and dependency validation** | Validates the application code and its dependencies. |
+| **MailMetrix CI: Docker validation** | Validates the Docker build configuration. |
+| **SonarCloud Code Analysis** | Static analysis for code quality and security issues; the Quality Gate must pass. |
+
+These checks reduce risk but do not guarantee that the software is free of vulnerabilities or defects. They complement, and do not replace, code review, testing, and the deployment guidance in [Security and Privacy](#security-and-privacy).
+
+## Privacy Policy
+
+*Last updated: 4 November 2026*
+
+### In short
+
+- MailMetrix is **self-hosted software**. The maintainers do not operate a hosted service and **do not receive any data** from your instance.
+- MailMetrix has **no analytics, advertising, tracking, or telemetry**, and does not send data to the maintainers.
+- The backend does not store SMTP credentials, email headers, or generated keys. They are processed for the request and discarded.
+- Data leaves your instance only to destinations **you** specify, such as the SMTP server you test and DNS resolvers.
+
+### Scope and responsibility
+
+This policy applies to the MailMetrix software and to the project's GitHub Pages website. Because you run MailMetrix yourself, **you (or your organization) are the operator of your instance** and are responsible for the data it processes, for protecting access to it, and for informing and obtaining any permissions needed from anyone else who uses it. If you run MailMetrix for other people, you may need your own privacy notice describing how your deployment handles their data.
+
+### What an instance processes
+
+| Data | Purpose | Retention |
+|---|---|---|
+| SMTP host, port, username, password, sender, recipient, subject, and message | To authenticate to and send a test email through the SMTP server you specify. | Used in memory for the request and not stored by MailMetrix. The password is not included in API responses. The data is sent to the SMTP server you specify, which handles it under its own policies. |
+| Domain names and DKIM selectors | To perform DNS lookups. | Not stored. They appear in request logs because they are part of the request URL. |
+| Email headers | To analyze message routing and authentication results. | Processed in memory and not stored. |
+| Generated DKIM private keys | To give you key material to publish and keep. | Not stored on the server. The key is delivered to your browser, so protect it and transmit it only over HTTPS. |
+| Client IP addresses | To apply rate limits. | Held temporarily in memory as counters, which expire after the rate-limit window and reset on restart. They also appear in Nginx access logs. |
+| Logs | To operate and troubleshoot the instance. | See below. |
+
+### Logs
+
+- **Backend:** logs a timestamp, request method, URL (including the query string), status code, and duration. It does not intentionally log request bodies, so SMTP credentials sent in a request body are not written to these logs. Error messages may also be logged.
+- **Nginx:** logs client IP addresses, request lines, status codes, and user agents in its standard access-log format.
+- **Retention:** Docker keeps container logs on the host. The default Compose file rotates them (10 MB per file, up to 3 files per service). Removing the containers, for example with `docker compose down`, deletes their logs. Adjust log settings if you need shorter retention.
+
+### Third parties and external connections
+
+- MailMetrix does not include third-party analytics, advertising, or tracking services.
+- SMTP tests connect to the mail server you specify, and DNS checks query DNS resolvers available to your environment. Those services receive the data needed for the lookup or message and handle it under their own policies.
+- Your hosting provider, network, or reverse proxy can observe traffic to your instance. Use HTTPS for remote access.
+
+### Cookies and browser storage
+
+The MailMetrix web interface is designed not to use tracking cookies or third-party scripts. If you add authentication or other components in front of it, those may set their own cookies, which are your responsibility.
+
+### The project website
+
+The MailMetrix GitHub Pages site is a static page. It does not use analytics, cookies, or forms, and does not load third-party fonts or scripts. The site is hosted by GitHub, which may process visitor information such as IP addresses under [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+
+### Your choices
+
+- Use test credentials rather than production credentials wherever possible.
+- Protect your instance with authentication and HTTPS.
+- Be careful before pasting real email headers, which can contain addresses, IP addresses, and message identifiers of third parties.
+- Configure log retention to suit your needs.
+- Do not post credentials, private keys, or personal data in public issues.
+
+### Changes to this policy
+
+Changes are made through the repository, and the history is visible in Git. The date above shows when this policy was last updated.
+
+### Questions
+
+For privacy questions, open an issue without including personal data. For security vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
 ## Contributing
 
 Contributions, bug reports, documentation improvements, and feature suggestions are welcome.
@@ -524,15 +611,17 @@ For security-sensitive findings, follow the instructions in [SECURITY.md](SECURI
 
 ## License
 
-MailMetrix is distributed under the license provided in the repository's `LICENSE` file.
+MailMetrix is distributed under the license provided in the repository's [LICENSE](LICENSE) file.
 
-Review that file before redistributing or incorporating MailMetrix into another project.
+Review that file before redistributing or incorporating MailMetrix into another project. It sets out the exact terms of use, including any warranty and liability disclaimers. MailMetrix is provided to you to run on your own systems, and you are responsible for how you deploy and use it.
 
 ## Project Links
 
 - **Source code:** https://github.com/devindevops/mailmetrix
 - **Issues:** https://github.com/devindevops/mailmetrix/issues
 - **Security policy:** [SECURITY.md](SECURITY.md)
+- **Privacy policy:** [Privacy Policy](#privacy-policy)
+- **License:** [LICENSE](LICENSE)
 
 ---
 

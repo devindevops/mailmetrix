@@ -1,689 +1,409 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="./icons/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32x32.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
-  <title>MailMetrix — Self-Hosted Email Diagnostics</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="./icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+<title>MailMetrix — Self-Hosted Email Diagnostics</title>
+<meta name="description" content="MailMetrix is an open-source, self-hosted toolkit for SMTP testing, DNS email authentication checks, email header analysis, and DKIM/DMARC generation.">
+<meta name="theme-color" content="#0b1020">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MailMetrix — Email Diagnostics Under Your Control">
+<meta property="og:description" content="Self-hosted email infrastructure diagnostics for developers and administrators.">
+<meta property="og:url" content="https://devindevops.github.io/mailmetrix/">
+<link rel="canonical" href="https://devindevops.github.io/mailmetrix/">
+<script>document.documentElement.classList.add('js')</script>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--surface:#121a2c;--hover:#18233a;--text:#eef2ff;--muted:#a3aec5;--accent:#70e1c1;--border:#29354b;--primary:#4f46e5;--max:1120px;--ease:cubic-bezier(.2,.7,.2,1)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.7;text-align:center;overflow-x:hidden}
+a{color:inherit}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+h1,h2,h3,p{margin-top:0}
+.container{width:min(var(--max),calc(100% - 40px));margin-inline:auto}
+.muted{color:var(--muted)}
 
-  <meta
-    name="description"
-    content="MailMetrix is an open-source, self-hosted toolkit for SMTP testing, DNS email authentication checks, email header analysis, and DKIM/DMARC generation."
-  >
+/* progress bar + nav */
+.bar{position:fixed;top:0;left:0;right:0;height:3px;z-index:20;transform:scaleX(0);transform-origin:0 50%;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.navbar{position:sticky;top:0;z-index:10;background:rgba(11,16,32,.8);border-bottom:1px solid var(--border);backdrop-filter:blur(14px)}
+.nav-inner{min-height:72px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 40px;padding:10px 0}
+.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-size:1.2rem;font-weight:800;letter-spacing:-.04em}
+.brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;color:#fff;background:linear-gradient(135deg,#6366f1,#4338ca);box-shadow:0 6px 14px -4px rgba(79,70,229,.5);transition:transform .4s var(--ease)}
+.brand:hover .brand-mark{transform:rotate(-8deg) scale(1.08)}
+.brand-mark svg{display:block}
+.brand-title span{color:var(--primary)}
+.nav-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 26px}
+.nav-links a{position:relative;color:var(--muted);text-decoration:none;font-size:.9rem;transition:color .2s}
+.nav-links a::after{content:"";position:absolute;left:50%;bottom:-4px;width:0;height:2px;border-radius:2px;background:var(--accent);transform:translateX(-50%);transition:width .3s var(--ease)}
+.nav-links a:hover{color:var(--text)}
+.nav-links a:hover::after{width:100%}
 
-  <meta name="theme-color" content="#0b1020">
+/* hero */
+section{padding:76px 0;border-top:1px solid var(--border)}
+.hero{position:relative;overflow:hidden;padding:110px 0 90px;border-top:0}
+.hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:56px 56px;opacity:.35;-webkit-mask-image:radial-gradient(ellipse at center,#000 15%,transparent 70%);mask-image:radial-gradient(ellipse at center,#000 15%,transparent 70%)}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:float 14s ease-in-out infinite alternate;pointer-events:none}
+.o1{width:420px;height:420px;top:-130px;left:6%;background:#4f46e5;opacity:.5}
+.o2{width:380px;height:380px;top:30px;right:5%;background:#70e1c1;opacity:.25;animation-delay:-5s}
+.o3{width:300px;height:300px;bottom:-130px;left:42%;background:#a855f7;opacity:.3;animation-delay:-9s}
+@keyframes float{to{transform:translate(50px,30px) scale(1.18)}}
+.hero .container{position:relative;z-index:1}
+.hero .container>*{animation:up .9s var(--ease) calc(var(--i,0)*.12s) both}
+@keyframes up{from{opacity:0;transform:translateY(26px)}}
+.eyebrow{display:inline-block;color:var(--accent);border:1px solid rgba(112,225,193,.35);border-radius:999px;padding:5px 14px;font-size:.8rem;font-weight:700;letter-spacing:.04em;background:rgba(112,225,193,.06)}
+.eyebrow::before{content:"";display:inline-block;width:7px;height:7px;margin-right:9px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(112,225,193,.6)}100%{box-shadow:0 0 0 10px transparent}}
+h1{max-width:850px;margin:22px auto;font-size:clamp(2.5rem,7vw,5rem);line-height:1.08;letter-spacing:-.065em}
+h1 span{background:linear-gradient(90deg,#70e1c1,#8b8cf8,#70e1c1);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:shine 6s linear infinite}
+@keyframes shine{to{background-position:200% center}}
+.hero-copy{max-width:720px;margin-inline:auto;color:var(--muted);font-size:1.15rem}
+.actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:30px}
+.button{display:inline-flex;justify-content:center;align-items:center;min-height:46px;padding:10px 20px;border:1px solid var(--border);border-radius:10px;text-decoration:none;font-weight:700;background:rgba(255,255,255,.03);transition:transform .25s var(--ease),box-shadow .25s,border-color .25s,background .25s}
+.button:hover{transform:translateY(-3px);border-color:var(--accent);background:var(--hover)}
+.button-primary{background:linear-gradient(135deg,var(--accent),#4ee0b0);color:#071711;border-color:var(--accent);box-shadow:0 8px 24px -8px rgba(112,225,193,.6)}
+.button-primary:hover{background:linear-gradient(135deg,#8af0d2,var(--accent));box-shadow:0 14px 32px -8px rgba(112,225,193,.8)}
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:34px}
+.chip{padding:6px 14px;border:1px solid var(--border);border-radius:999px;background:rgba(18,26,44,.7);color:var(--muted);font-size:.85rem;backdrop-filter:blur(6px)}
 
-  <meta property="og:type" content="website">
-  <meta
-    property="og:title"
-    content="MailMetrix — Email Diagnostics Under Your Control"
-  >
-  <meta
-    property="og:description"
-    content="Self-hosted email infrastructure diagnostics for developers and administrators."
-  >
-  <meta
-    property="og:url"
-    content="https://devindevops.github.io/mailmetrix/"
-  >
+/* marquee */
+.marquee{overflow:hidden;border-block:1px solid var(--border);background:rgba(18,26,44,.5);padding:14px 0;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.track{display:inline-flex;width:max-content;animation:scroll 30s linear infinite;color:var(--muted);font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.track span{padding:0 26px}
+.track span::before{content:"✦";margin-right:52px;color:var(--accent)}
+@keyframes scroll{to{transform:translateX(-50%)}}
 
-  <link rel="canonical"
-        href="https://devindevops.github.io/mailmetrix/">
+/* sections + cards */
+.section-heading{max-width:1080px;margin:0 auto 36px}
+.section-heading h2{margin-bottom:10px;font-size:clamp(1.8rem,4vw,2.7rem);line-height:1.2;letter-spacing:-.04em}
+.section-heading h2::after{content:"";display:block;width:56px;height:3px;margin:16px auto 0;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--primary))}
+.section-heading p{margin-bottom:0;color:var(--muted)}
+.subhead{display:flex;align-items:center;justify-content:center;gap:18px;margin:48px 0 18px;font-size:1.3rem;letter-spacing:-.02em}
+.subhead::before,.subhead::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border))}
+.subhead::after{background:linear-gradient(270deg,transparent,var(--border))}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.card{position:relative;overflow:hidden;min-width:0;padding:28px 24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;transition:transform .3s var(--ease),border-color .3s,box-shadow .3s}
+.card::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(280px circle at var(--mx,50%) var(--my,0),rgba(112,225,193,.15),transparent 70%)}
+.card::after{content:"";position:absolute;top:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.55}
+.card:hover,.js .card.in:hover{transform:translateY(-6px);border-color:rgba(112,225,193,.5);box-shadow:0 22px 44px -24px rgba(79,70,229,.6)}
+.card:hover::before{opacity:1}
+.card h3{margin-bottom:8px;font-size:1.15rem}
+.card p{margin-bottom:0;color:var(--muted)}
+.icon{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 16px;border-radius:15px;font-size:1.5rem;background:linear-gradient(135deg,rgba(79,70,229,.35),rgba(112,225,193,.2));border:1px solid var(--border);transition:transform .4s var(--ease)}
+.card:hover .icon{transform:scale(1.12) rotate(-5deg)}
+.card code,.notice code{padding:1px 6px;background:#070b14;border:1px solid var(--border);border-radius:5px;color:var(--accent);font:.85em ui-monospace,SFMono-Regular,Consolas,monospace}
+.card-warning{border-color:rgba(112,225,193,.45);animation:glow 3.5s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 28px -6px rgba(112,225,193,.35)}}
+.feature-image{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;margin-bottom:20px;background:#080c17;border:1px solid var(--border);border-radius:10px;transition:transform .5s var(--ease)}
+.card:hover .feature-image{transform:scale(1.035)}
+.notice{max-width:800px;margin:26px auto 0;padding:18px 22px;border:1px solid rgba(255, 0, 0, 0.541);border-radius:60px;background:var(--surface);color:var(--muted)}
+.notice a{color:var(--accent)}
 
-  <style>
-    :root {
-      color-scheme: dark;
-      --background: #0b1020;
-      --surface: #121a2c;
-      --surface-hover: #18233a;
-      --text: #eef2ff;
-      --muted: #a3aec5;
-      --accent: #70e1c1;
-      --border: #29354b;
-      --max-width: 1120px;
-      --primary: #4f46e5;
-    }
+/* architecture */
+.architecture{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;max-width:860px;margin:0 auto}
+.architecture .card{height:100%;display:grid;align-content:center}
+.flow{position:relative;width:96px;height:2px;background:var(--border)}
+.flow::after{content:"";position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent);animation:dot 2s var(--ease) infinite}
+@keyframes dot{from{left:0;opacity:0}15%,85%{opacity:1}to{left:calc(100% - 10px);opacity:0}}
+@keyframes dotv{from{top:0;opacity:0}15%,85%{opacity:1}to{top:calc(100% - 10px);opacity:0}}
 
-    * {
-      box-sizing: border-box;
-    }
+/* terminal */
+.term{display:inline-block;max-width:100%;overflow-x:auto;padding:0 22px 20px;text-align:left;background:#070b14;border:1px solid var(--border);border-radius:12px;color:var(--accent);font:.9rem/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;box-shadow:0 30px 60px -30px rgba(79,70,229,.5)}
+.dots{display:flex;gap:7px;margin:0 -22px 16px;padding:12px 16px;border-bottom:1px solid var(--border);background:#0c1220}
+.dots i{width:11px;height:11px;border-radius:50%;background:#ff5f57}
+.dots i:nth-child(2){background:#febc2e}
+.dots i:nth-child(3){background:#28c840}
+.tl{display:block;overflow:hidden;white-space:nowrap;width:calc(var(--n)*1ch)}
+.tl::before{content:"$ ";color:var(--muted)}
+.js .tl{width:0}
+.js .in .tl{animation:type var(--d) steps(var(--n)) var(--s) forwards}
+@keyframes type{to{width:calc(var(--n)*1ch)}}
+.term::after{content:"▍";display:block;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
 
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 90px;
-    }
+/* reveal */
+.js .reveal:not(.in){opacity:0}
+.js .reveal.in{animation:up .8s var(--ease) calc(var(--i,0)*90ms) both}
 
-    body {
-      margin: 0;
-      background: var(--background);
-      color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont,
-        "Segoe UI", sans-serif;
-      line-height: 1.7;
-    }
+footer{padding:34px 0;border-top:1px solid var(--border);color:var(--muted);font-size:.9rem}
+.footer-inner{display:flex;flex-direction:column;align-items:center;gap:4px}
 
-    a {
-      color: inherit;
-    }
-
-    a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 4px;
-    }
-
-    .container {
-      width: min(var(--max-width), calc(100% - 40px));
-      margin-inline: auto;
-    }
-
-    .navbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: rgba(11, 16, 32, 0.95);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-    }
-
-    .nav-inner {
-      min-height: 72px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--text);
-      text-decoration: none;
-      font-size: 1.2rem;
-      font-weight: 800;
-      letter-spacing: -0.04em;
-    }
-
-    .brand-mark {
-      display: grid;
-      place-items: center;
-      width: 38px;
-      height: 38px;
-      flex-shrink: 0;
-      border-radius: 11px;
-      color: #fff;
-      background: linear-gradient(135deg, #6366f1, #4338ca);
-      box-shadow: 0 6px 14px -4px rgba(79, 70, 229, 0.5);
-    }
-
-    .brand-mark svg {
-      display: block;
-    }
-
-    .brand-title {
-      color: var(--text);
-    }
-
-    .brand-title span {
-      color: var(--primary);
-    }
-
-    .nav-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      align-items: center;
-    }
-
-    .nav-links a {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    .nav-links a:hover {
-      color: var(--text);
-    }
-
-    .hero {
-      padding: 100px 0 80px;
-      background:
-        radial-gradient(
-          ellipse at top right,
-          rgba(112, 225, 193, 0.12),
-          transparent 55%
-        );
-    }
-
-    .eyebrow {
-      display: inline-block;
-      color: var(--accent);
-      border: 1px solid rgba(112, 225, 193, 0.35);
-      border-radius: 999px;
-      padding: 5px 12px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-
-    h1, h2, h3, p {
-      margin-top: 0;
-    }
-
-    h1 {
-      max-width: 850px;
-      margin: 22px 0;
-      font-size: clamp(2.5rem, 7vw, 5rem);
-      line-height: 1.08;
-      letter-spacing: -0.065em;
-    }
-
-    h1 span {
-      color: var(--accent);
-    }
-
-    .hero-copy {
-      max-width: 720px;
-      color: var(--muted);
-      font-size: 1.15rem;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 30px;
-    }
-
-    .button {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 46px;
-      padding: 10px 18px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      text-decoration: none;
-      font-weight: 700;
-    }
-
-    .button-primary {
-      background: var(--accent);
-      color: #071711;
-      border-color: var(--accent);
-    }
-
-    .button-secondary:hover {
-      background: var(--surface-hover);
-    }
-
-    section {
-      padding: 76px 0;
-      border-top: 1px solid var(--border);
-    }
-
-    .section-heading {
-      max-width: 720px;
-      margin-bottom: 32px;
-    }
-
-    .section-heading h2 {
-      margin-bottom: 10px;
-      font-size: clamp(1.8rem, 4vw, 2.7rem);
-      line-height: 1.2;
-      letter-spacing: -0.04em;
-    }
-
-    .section-heading p {
-      color: var(--muted);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .card {
-      padding: 24px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      min-width: 0;
-    }
-
-    .card h3 {
-      margin-bottom: 8px;
-      font-size: 1.15rem;
-    }
-
-    .card p {
-      margin-bottom: 0;
-      color: var(--muted);
-    }
-
-    .feature-image {
-      display: block;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      object-fit: contain;
-      margin-bottom: 20px;
-      background: #080c17;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-    }
-
-    .terminal {
-      overflow-x: auto;
-      padding: 22px;
-      background: #070b14;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      color: var(--accent);
-      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-      font-size: 0.9rem;
-      white-space: pre;
-    }
-
-    .muted {
-      color: var(--muted);
-    }
-
-    .notice {
-      margin-top: 22px;
-      padding: 18px;
-      border-left: 3px solid var(--accent);
-      background: var(--surface);
-      color: var(--muted);
-    }
-
-    .architecture {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: 16px;
-      text-align: center;
-    }
-
-    .architecture .card {
-      height: 100%;
-      display: grid;
-      align-content: center;
-    }
-
-    .architecture .arrow {
-      color: var(--accent);
-      font-size: 1.8rem;
-    }
-
-    footer {
-      padding: 32px 0;
-      border-top: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .footer-inner {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    @media (max-width: 680px) {
-      .nav-inner {
-        padding: 14px 0;
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .nav-links {
-        gap: 12px;
-      }
-
-      .hero {
-        padding: 70px 0 55px;
-      }
-
-      section {
-        padding: 55px 0;
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .architecture {
-        grid-template-columns: 1fr;
-      }
-
-      .architecture .arrow {
-        transform: rotate(90deg);
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      html {
-        scroll-behavior: auto;
-      }
-    }
-  </style>
+@media (max-width:680px){
+.hero{padding:70px 0 55px}
+section{padding:55px 0}
+.grid,.architecture{grid-template-columns:1fr}
+.flow{width:2px;height:56px;margin:auto}
+.flow::after{top:0;left:-4px;animation-name:dotv}
+}
+@media (prefers-reduced-motion:reduce){
+html{scroll-behavior:auto}
+*,*::before,*::after{animation:none!important;transition:none!important}
+.js .reveal:not(.in){opacity:1}
+.js .tl{width:calc(var(--n)*1ch)}
+}
+</style>
 </head>
 
 <body>
-  <header class="navbar">
-    <div class="container nav-inner">
-      <a class="brand" href="#home" aria-label="MailMetrix home">
-        <span class="brand-mark" aria-hidden="true">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="5" width="18" height="14" rx="3" />
-            <path d="m3 8 9 6 9-6" />
-          </svg>
-        </span>
+<div class="bar" aria-hidden="true"></div>
 
-        <span class="brand-title">Mail<span>Metrix</span></span>
-      </a>
-
-      <nav class="nav-links" aria-label="Main navigation">
-        <a href="#features">Features</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#security">Security</a>
-        <a href="#get-started">Get Started</a>
-      </nav>
-    </div>
-  </header>
-
-  <main>
-    <section class="hero" id="home">
-      <div class="container">
-        <span class="eyebrow">OPEN SOURCE · SELF-HOSTED</span>
-
-        <h1>
-          Email diagnostics.<br>
-          <span>Under your control.</span>
-        </h1>
-
-        <p class="hero-copy">
-          Test SMTP connectivity, inspect email authentication records,
-          analyze message headers, and generate DKIM/DMARC configuration
-          material with a self-hosted toolkit built for developers and
-          system administrators.
-        </p>
-
-        <div class="actions">
-          <a class="button button-primary"
-             href="https://github.com/devindevops/mailmetrix">
-            Explore on GitHub
-          </a>
-
-          <a class="button button-secondary" href="#get-started">
-            Self-host MailMetrix
-          </a>
-
-          <a class="button button-secondary"
-             href="https://github.com/devindevops/mailmetrix/issues">
-            Report an Issue
-          </a>
-        </div>
-
-        <p class="muted" style="margin-top: 22px">
-          Build locally with Docker Compose. No public demo instance required.
-        </p>
-      </div>
-    </section>
-
-    <section id="problem">
-      <div class="container">
-        <div class="section-heading">
-          <h2>Take control of your diagnostic environment.</h2>
-          <p>
-            Email troubleshooting can involve SMTP credentials, DNS
-            configuration, and sensitive message headers. MailMetrix
-            provides a self-hosted deployment option so you can run
-            diagnostics in infrastructure you control.
-          </p>
-        </div>
-
-        <div class="grid">
-          <article class="card">
-            <h3>Self-hosted by design</h3>
-            <p>
-              Build and run the application in your own environment
-              using Docker Compose.
-            </p>
-          </article>
-
-          <article class="card">
-            <h3>Focused email diagnostics</h3>
-            <p>
-              Access common SMTP, DNS, header-analysis, and
-              authentication-generation tools in one interface.
-            </p>
-          </article>
-        </div>
-
-        <p class="notice">
-          Self-hosting can reduce dependence on third-party diagnostic
-          services, but it does not automatically guarantee security.
-          Review the application's security controls and protect access
-          to your deployment.
-        </p>
-      </div>
-    </section>
-
-    <section id="features">
-      <div class="container">
-        <div class="section-heading">
-          <h2>Four tools. One self-hosted workspace.</h2>
-          <p>
-            Explore the tools available in MailMetrix.
-          </p>
-        </div>
-
-        <div class="grid">
-          <article class="card">
-            <img
-              class="feature-image"
-              src="assets/screenshots/smtp-tester.png"
-              alt="MailMetrix SMTP Tester interface"
-              loading="lazy"
-            >
-            <h3>01. SMTP Tester</h3>
-            <p>
-              Troubleshoot SMTP connectivity and authentication
-              against a specified mail server.
-            </p>
-          </article>
-
-          <article class="card">
-            <img
-              class="feature-image"
-              src="assets/screenshots/dns-checker.png"
-              alt="MailMetrix DNS Email Checker interface"
-              loading="lazy"
-            >
-            <h3>02. DNS Email Checker</h3>
-            <p>
-              Inspect MX, SPF, DMARC, and DKIM records
-              associated with your domain.
-            </p>
-          </article>
-
-          <article class="card">
-            <img
-              class="feature-image"
-              src="assets/screenshots/header-analyzer.png"
-              alt="MailMetrix Email Header Analyzer interface"
-              loading="lazy"
-            >
-            <h3>03. Email Header Analyzer</h3>
-            <p>
-              Examine email headers to investigate message routing
-              and authentication information.
-            </p>
-          </article>
-
-          <article class="card">
-            <img
-              class="feature-image"
-              src="assets/screenshots/dkim-dmarc-generator.png"
-              alt="MailMetrix DKIM and DMARC Generator interface"
-              loading="lazy"
-            >
-            <h3>04. DKIM &amp; DMARC Generator</h3>
-            <p>
-              Generate email authentication configuration
-              material for review and deployment.
-            </p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="architecture">
-      <div class="container">
-        <div class="section-heading">
-          <h2>Simple, containerized architecture.</h2>
-          <p>
-            MailMetrix separates the frontend interface from the
-            backend API and builds the application from source.
-          </p>
-        </div>
-
-        <div class="architecture">
-          <div class="card">
-            <h3>Frontend</h3>
-            <p>Nginx · Web interface</p>
-          </div>
-
-          <div class="arrow" aria-hidden="true">→</div>
-
-          <div class="card">
-            <h3>Backend</h3>
-            <p>Node.js · Diagnostic API</p>
-          </div>
-        </div>
-
-        <p class="muted" style="margin-top: 20px">
-          SMTP and DNS operations may communicate with external
-          servers or resolvers. Review the source code to understand
-          the connections made by each feature.
-        </p>
-      </div>
-    </section>
-
-    <section id="get-started">
-      <div class="container">
-        <div class="section-heading">
-          <h2>Run MailMetrix yourself.</h2>
-          <p>
-            Start with the public source repository and build the
-            application on your own machine.
-          </p>
-        </div>
-
-        <div class="terminal">git clone https://github.com/devindevops/mailmetrix.git
-cd mailmetrix
-docker compose build
-docker compose up -d</div>
-
-        <p class="muted" style="margin-top: 16px">
-          Open http://localhost:50000 after the containers start.
-          Review the README and environment configuration before deployment.
-        </p>
-
-        <div class="actions">
-          <a class="button button-primary"
-             href="https://github.com/devindevops/mailmetrix">
-            Read Installation Guide
-          </a>
-
-          <a class="button button-secondary"
-             href="https://github.com/devindevops/mailmetrix/blob/main/SECURITY.md">
-            Security Policy
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <section id="security">
-      <div class="container">
-        <div class="section-heading">
-          <h2>Self-hosting requires responsible configuration.</h2>
-          <p>
-            Keep control of your deployment by protecting credentials,
-            limiting access, and understanding how diagnostic requests
-            are processed.
-          </p>
-        </div>
-
-        <div class="grid">
-          <article class="card">
-            <h3>Protect credentials</h3>
-            <p>
-              Never commit secrets. Avoid production credentials
-              during testing, and review application logging.
-            </p>
-          </article>
-
-          <article class="card">
-            <h3>Control network access</h3>
-            <p>
-              Do not expose an unauthenticated instance to untrusted
-              networks. Use appropriate access controls for remote access.
-            </p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="contribute">
-      <div class="container">
-        <div class="section-heading">
-          <h2>Built in the open.</h2>
-          <p>
-            MailMetrix is maintained in a public repository.
-            Explore the implementation, report bugs, and contribute
-            improvements through pull requests.
-          </p>
-        </div>
-
-        <div class="actions">
-          <a class="button button-primary"
-             href="https://github.com/devindevops/mailmetrix">
-            View Source Code
-          </a>
-
-          <a class="button button-secondary"
-             href="https://github.com/devindevops/mailmetrix/issues">
-            Browse Issues
-          </a>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="container footer-inner">
-      <span>MailMetrix · Open-source email diagnostics</span>
-
-      <span>
-        Maintained by
-        <a href="https://github.com/devindevops">devindevops</a>
+<header class="navbar">
+  <div class="container nav-inner">
+    <a class="brand" href="#home" aria-label="MailMetrix home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 8 9 6 9-6"/></svg>
       </span>
+      <span class="brand-title">Mail<span>Metrix</span></span>
+    </a>
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#security">Security</a>
+      <a href="#get-started">Get Started</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="home">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+    <div class="container">
+      <span class="eyebrow" style="--i:0">OPEN SOURCE · SELF-HOSTED</span>
+      <h1 style="--i:1">Email diagnostics.<br><span>Under your control.</span></h1>
+      <p class="hero-copy" style="--i:2">
+        Test SMTP connectivity, inspect email authentication records, analyze message headers, and generate DKIM/DMARC configuration material with a self-hosted toolkit built for developers and system administrators.
+      </p>
+      <div class="actions" style="--i:3">
+        <a class="button button-primary" href="https://github.com/devindevops/mailmetrix">Explore on GitHub</a>
+        <a class="button" href="#get-started">Self-host MailMetrix</a>
+        <a class="button" href="https://github.com/devindevops/mailmetrix/issues">Report an Issue</a>
+      </div>
+      <div class="chips" style="--i:4">
+        <span class="chip">🐳 Docker Compose</span>
+        <span class="chip">🛡️ Built-in safeguards</span>
+        <span class="chip">📦 Non-root containers</span>
+        <span class="chip">🔓 Open source</span>
+      </div>
+      <p class="muted" style="--i:5;margin:22px 0 0">Build locally with Docker Compose. No public demo instance required.</p>
     </div>
-  </footer>
+  </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="track">
+      <span>SMTP Tester</span><span>DNS Checker</span><span>Header Analyzer</span><span>SPF</span><span>DKIM</span><span>DMARC</span><span>MX Records</span><span>Self-Hosted</span>
+      <span>SMTP Tester</span><span>DNS Checker</span><span>Header Analyzer</span><span>SPF</span><span>DKIM</span><span>DMARC</span><span>MX Records</span><span>Self-Hosted</span>
+    </div>
+  </div>
+
+  <section id="problem">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Take control of your diagnostic environment.</h2>
+        <p>Email troubleshooting can involve SMTP credentials, DNS configuration, and sensitive message headers. MailMetrix provides a self-hosted deployment option so you can run diagnostics in infrastructure you control.</p>
+      </div>
+      <div class="grid">
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🏠</div>
+          <h3>Self-hosted by design</h3>
+          <p>Build and run the application in your own environment using Docker Compose.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🎯</div>
+          <h3>Focused email diagnostics</h3>
+          <p>Access common SMTP, DNS, header-analysis, and authentication-generation tools in one interface.</p>
+        </article>
+      </div>
+      <p class="notice reveal">
+        Self-hosting can reduce dependence on third-party diagnostic services, but it does not automatically guarantee security. MailMetrix includes built-in safeguards, but it has no built-in login, so protect access to your deployment. See the <a href="#security">Security</a> section.
+      </p>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Four tools. One self-hosted workspace.</h2>
+        <p>Explore the tools available in MailMetrix.</p>
+      </div>
+      <div class="grid">
+        <article class="card reveal">
+          <img class="feature-image" src="assets/screenshots/smtp-tester.png" alt="MailMetrix SMTP Tester interface" loading="lazy">
+          <h3>01. SMTP Tester</h3>
+          <p>Troubleshoot SMTP connectivity and authentication against a specified mail server. Private and internal addresses are blocked by default, and only standard mail ports are allowed.</p>
+        </article>
+        <article class="card reveal">
+          <img class="feature-image" src="assets/screenshots/dns-checker.png" alt="MailMetrix DNS Email Checker interface" loading="lazy">
+          <h3>02. DNS Email Checker</h3>
+          <p>Inspect MX, SPF, DMARC, and DKIM records associated with your domain.</p>
+        </article>
+        <article class="card reveal">
+          <img class="feature-image" src="assets/screenshots/header-analyzer.png" alt="MailMetrix Email Header Analyzer interface" loading="lazy">
+          <h3>03. Email Header Analyzer</h3>
+          <p>Examine email headers to investigate message routing and authentication information.</p>
+        </article>
+        <article class="card reveal">
+          <img class="feature-image" src="assets/screenshots/dkim-dmarc-generator.png" alt="MailMetrix DKIM and DMARC Generator interface" loading="lazy">
+          <h3>04. DKIM &amp; DMARC Generator</h3>
+          <p>Generate email authentication configuration material for review and deployment. Key generation runs off the main thread with a concurrency limit.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Simple, containerized architecture.</h2>
+        <p>MailMetrix separates the frontend interface from the backend API and builds the application from source.</p>
+      </div>
+      <div class="architecture">
+        <div class="card reveal"><div class="icon" aria-hidden="true">🌐</div><h3>Frontend</h3><p>Unprivileged Nginx · Web interface · API proxy</p></div>
+        <div class="flow" aria-hidden="true"></div>
+        <div class="card reveal"><div class="icon" aria-hidden="true">⚙️</div><h3>Backend</h3><p>Node.js · Diagnostic API · Not published to the host</p></div>
+      </div>
+      <p class="muted reveal" style="max-width:720px;margin:24px auto 0">
+        Only the Nginx container is published (host port 50000); the backend is reachable only through the proxy or from the Compose network. SMTP and DNS operations may communicate with external servers or resolvers. Review the source code to understand the connections made by each feature.
+      </p>
+    </div>
+  </section>
+
+  <section id="get-started">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Run MailMetrix yourself.</h2>
+        <p>Start with the public source repository and build the application on your own machine.</p>
+      </div>
+      <div class="term reveal" role="img" aria-label="Terminal commands: git clone, cd mailmetrix, docker compose build, docker compose up -d">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <span class="tl" style="--n:57;--s:.2s;--d:1.4s">git clone https://github.com/devindevops/mailmetrix.git</span>
+        <span class="tl" style="--n:15;--s:1.7s;--d:.5s">cd mailmetrix</span>
+        <span class="tl" style="--n:22;--s:2.3s;--d:.7s">docker compose build</span>
+        <span class="tl" style="--n:22;--s:3.1s;--d:.7s">docker compose up -d</span>
+      </div>
+      <p class="muted reveal" style="max-width:720px;margin:20px auto 0">
+        Open http://localhost:50000 after the containers start. Review the README and its Configuration section before deployment, especially before exposing the instance to any network beyond your own machine.
+      </p>
+      <div class="actions reveal">
+        <a class="button button-primary" href="https://github.com/devindevops/mailmetrix">Read Installation Guide</a>
+        <a class="button" href="https://github.com/devindevops/mailmetrix/blob/main/SECURITY.md">Security Policy</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="security">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Safeguards built in. Responsible hosting required.</h2>
+        <p>MailMetrix includes protections against common abuse of a diagnostic tool, but self-hosting still requires you to protect credentials, limit access, and understand how requests are processed.</p>
+      </div>
+
+      <h3 class="subhead reveal">Built-in safeguards</h3>
+      <div class="grid">
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🛡️</div>
+          <h3>Outbound connection guardrails</h3>
+          <p>The SMTP tester validates its destination before connecting. Loopback, private, link-local, and cloud-metadata addresses are blocked, the validated address is the one connected to, and ports are limited to <code>25</code>, <code>465</code>, <code>587</code>, and <code>2525</code> by default.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">✉️</div>
+          <h3>Email abuse limits</h3>
+          <p>Sender and recipient must each be a single valid address, and subject and message length are capped. Operators can restrict recipients with <code>ALLOWED_RECIPIENT_DOMAINS</code> or <code>ENFORCE_TEST_RECIPIENT</code>.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">⏱️</div>
+          <h3>Rate limiting</h3>
+          <p>Every API route is limited per client IP, with stricter limits for SMTP tests, record generation, and DNS checks. Limits are configurable through environment variables.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🧮</div>
+          <h3>Bounded resource use</h3>
+          <p>DKIM key generation runs off the main thread with a concurrency cap and bounded queue. When the server is busy it answers <code>503</code> instead of stalling.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🧱</div>
+          <h3>Hardened web layer</h3>
+          <p>Nginx sends Content Security Policy and other security headers, hides its version, and strips backend framework headers. The public health probe reveals no process internals.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">📦</div>
+          <h3>Least-privilege containers</h3>
+          <p>Both containers run as non-root users with all Linux capabilities dropped and privilege escalation disabled. Base images are pinned to supported versions.</p>
+        </article>
+      </div>
+
+      <h3 class="subhead reveal">Your responsibilities</h3>
+      <div class="grid">
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🔐</div>
+          <h3>Add authentication</h3>
+          <p>MailMetrix has <strong>no built-in login</strong>. Do not expose it to untrusted networks without reverse-proxy authentication, an identity-aware gateway, or a private network such as Tailscale or WireGuard.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🔑</div>
+          <h3>Protect credentials</h3>
+          <p>Never commit secrets. Avoid production credentials during testing, and review application logging.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🔀</div>
+          <h3>Configure the proxy chain</h3>
+          <p>Set <code>TRUST_PROXY</code> to the number of proxies in front of the backend so rate limiting sees real client addresses, and use HTTPS for remote access.</p>
+        </article>
+        <article class="card reveal">
+          <div class="icon" aria-hidden="true">🔄</div>
+          <h3>Keep everything updated</h3>
+          <p>Pinned images and dependencies do not update themselves. Rebuild regularly, and consider automated update tooling.</p>
+        </article>
+      </div>
+
+      <p class="notice reveal">
+        These safeguards reduce risk but do not replace authentication or network controls. Rate limits are in-memory and per process, and recipient restrictions based on user-supplied fields limit blast radius rather than prevent abuse. Read the full details in the <a href="https://github.com/devindevops/mailmetrix#security-and-privacy">README security section</a>.
+      </p>
+      <div class="actions reveal">
+        <a class="button button-primary" href="https://github.com/devindevops/mailmetrix#security-and-privacy">Read the Security Guide</a>
+        <a class="button" href="https://github.com/devindevops/mailmetrix/blob/main/SECURITY.md">Report a Vulnerability</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="contribute">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Built in the open.</h2>
+        <p>MailMetrix is maintained in a public repository. Explore the implementation, report bugs, and contribute improvements through pull requests.</p>
+      </div>
+      <div class="actions reveal">
+        <a class="button button-primary" href="https://github.com/devindevops/mailmetrix">View Source Code</a>
+        <a class="button" href="https://github.com/devindevops/mailmetrix/issues">Browse Issues</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>MailMetrix · Open-source email diagnostics</span>
+    <span>Maintained by <a href="https://github.com/devindevops">devindevops</a></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var R=document.querySelectorAll('.reveal');
+  R.forEach(function(e){e.style.setProperty('--i',Array.prototype.indexOf.call(e.parentNode.children,e)%4)});
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.15});
+    R.forEach(function(e){io.observe(e)});
+  }else{R.forEach(function(e){e.classList.add('in')})}
+  var bar=document.querySelector('.bar'),d=document.documentElement;
+  function prog(){var m=d.scrollHeight-innerHeight;bar.style.transform='scaleX('+(m>0?scrollY/m:0)+')'}
+  addEventListener('scroll',prog,{passive:true});prog();
+  document.querySelectorAll('.card').forEach(function(c){
+    c.addEventListener('pointermove',function(e){var r=c.getBoundingClientRect();c.style.setProperty('--mx',e.clientX-r.left+'px');c.style.setProperty('--my',e.clientY-r.top+'px')});
+  });
+})();
+</script>
 </body>
 </html>
