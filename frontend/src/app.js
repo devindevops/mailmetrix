@@ -3,12 +3,29 @@ import { initSMTP } from "./features/smtp.js";
 import { initDNS } from "./features/dns.js";
 import { initHeaders } from "./features/headers.js";
 import { initGenerator } from "./features/generator.js";
+import { initBlacklist, renderBlacklist } from "./features/blacklist.js";
+import { initScore, renderScore } from "./features/score.js";
+import { initTls, renderTls } from "./features/tls.js";
+import { loadSharedFromUrl } from "./features/share.js";
+import { renderSmtp, renderDns, renderGenerator, renderHeaders } from "./features/renderers.js";
 
 initTabs();
 initSMTP();
 initDNS();
 initHeaders();
 initGenerator();
+initBlacklist();
+initScore();
+initTls();
+loadSharedFromUrl({
+  blacklist: renderBlacklist,
+  score: renderScore,
+  tls: renderTls,
+  smtp: renderSmtp,
+  dns: renderDns,
+  generator: renderGenerator,
+  headers: renderHeaders
+});
 
 /* ---------------- Theme toggle ---------------- */
 (function initTheme() {

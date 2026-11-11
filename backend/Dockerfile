@@ -22,6 +22,8 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --chown=node:node src ./src
 
+RUN mkdir -p /app/data/shares && chown -R node:node /app/data
+
 # Drop root: the "node" user (uid 1000) ships with the official image.
 USER node
 

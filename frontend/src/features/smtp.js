@@ -1,4 +1,6 @@
 import { $, escapeHtml } from "./utils.js";
+import { startFlow, flowActive, flowSuccess, flowError, checkBackend } from "./flow.js";
+import { attachActions, clearActions } from "./share.js";
 
 const setState = (id, state, text) => {
   const el = $(id);
@@ -7,12 +9,16 @@ const setState = (id, state, text) => {
   if (text) el.querySelector("p")?.replaceChildren(document.createTextNode(text));
 };
 
-const setFlow = (id, state) => {
-  const el = $(id);
-  if (!el) return;
-  el.classList.remove("active", "success", "error");
-  el.classList.add(state);
-};
+// Share/export the diagnostic OUTPUT only: never the username, password, sender, recipient list input or message body.
+const shareResult = (status, title, data) =>
+  attachActions("smtp", {
+    status,
+    title,
+    host: $("smtpHost").value.trim(),
+    port: Number($("smtpPort").value),
+    security: $("smtpSecurity").value,
+    ...data
+  }, "smtpActions", "result");
 
 const showResult = (type, title, data = {}) => {
   const el = $("result");
@@ -34,19 +40,12 @@ const showResult = (type, title, data = {}) => {
   `;
 };
 
+// Reachability check (shared) + sidebar status badge update (SMTP-specific UI).
 async function backendHealth() {
-  try {
-    const response = await fetch("/api/health");
-    if (!response.ok) throw new Error();
-    await response.json();
-    $("backendStatus").textContent = "Connected";
-    $("backendDot").className = "status-dot online";
-    return true;
-  } catch {
-    $("backendStatus").textContent = "Unavailable";
-    $("backendDot").className = "status-dot offline";
-    return false;
-  }
+  const ok = await checkBackend();
+  $("backendStatus").textContent = ok ? "Connected" : "Unavailable";
+  $("backendDot").className = `status-dot ${ok ? "online" : "offline"}`;
+  return ok;
 }
 
 export function initSMTP() {
@@ -68,6 +67,7 @@ export function initSMTP() {
   });
 
   button.addEventListener("click", async () => {
+    clearActions("smtpActions");
     const fields = [
       [$("smtpHost"), "SMTP host is required"],
       [port, "SMTP port is required"],
@@ -88,15 +88,14 @@ export function initSMTP() {
 
     button.disabled = true;
     button.textContent = "Testing SMTP...";
-    ["flowFrontend", "flowBackend", "flowSMTP", "flowEmail"].forEach((id) =>
-      $(id)?.classList.remove("active", "success", "error")
-    );
 
-    setFlow("flowFrontend", "success");
+    startFlow();
+    flowSuccess("flowFrontend");
+    flowActive("flowBackend");
     setState("stageBackend", "active", "Checking backend...");
 
     if (!(await backendHealth())) {
-      setFlow("flowBackend", "error");
+      flowError("flowBackend");
       setState("stageBackend", "error", "Backend is not reachable.");
       showResult("error", "Backend Connection Failed", {
         stage: "backend_connection",
@@ -107,9 +106,9 @@ export function initSMTP() {
       return;
     }
 
-    setFlow("flowBackend", "success");
+    flowSuccess("flowBackend");
     setState("stageBackend", "success", "Request reached Node.js backend.");
-    setFlow("flowSMTP", "active");
+    flowActive("flowSMTP");
     setState("stageSMTP", "active", "Connecting to SMTP server and verifying credentials...");
 
     try {
@@ -133,29 +132,32 @@ export function initSMTP() {
       const data = await response.json();
 
       if (!response.ok && data.stage === "smtp_authentication") {
-        setFlow("flowSMTP", "error");
+        flowError("flowSMTP");
         setState("stageSMTP", "error", "SMTP connection or authentication failed.");
         showResult("error", "SMTP Authentication Failed", data);
+        shareResult("error", "SMTP Authentication Failed", data);
         return;
       }
 
-      setFlow("flowSMTP", "success");
+      flowSuccess("flowSMTP");
       setState("stageSMTP", "success", "SMTP credentials verified successfully.");
-      setFlow("flowEmail", "active");
+      flowActive("flowEmail");
       setState("stageEmail", "active", "Sending test email...");
 
       if (!response.ok) {
-        setFlow("flowEmail", "error");
+        flowError("flowEmail");
         setState("stageEmail", "error", "Email sending failed.");
         showResult("error", "Email Sending Failed", data);
+        shareResult("error", "Email Sending Failed", data);
         return;
       }
 
-      setFlow("flowEmail", "success");
+      flowSuccess("flowEmail");
       setState("stageEmail", "success", "Test email was accepted by the SMTP server.");
       showResult("success", "SMTP Test Successful", data);
+      shareResult("success", "SMTP Test Successful", data);
     } catch (error) {
-      setFlow("flowEmail", "error");
+      flowError("flowEmail");
       setState("stageEmail", "error", "Could not communicate with the backend.");
       showResult("error", "Request Failed", { stage: "frontend_request", error: error.message });
     } finally {

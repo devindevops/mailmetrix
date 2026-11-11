@@ -72,6 +72,24 @@
           </span>
           <span class="tab-text"><strong>SPF, DKIM &amp; DMARC</strong><small>Create DNS records</small></span>
         </button>
+        <button class="tab" type="button" data-tool="blacklist">
+          <span class="tab-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+          </span>
+          <span class="tab-text"><strong>Blacklist Check</strong><small>Reputation lookup</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="score">
+          <span class="tab-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          </span>
+          <span class="tab-text"><strong>Deliverability Score</strong><small>Grade a domain</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="tls">
+          <span class="tab-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <span class="tab-text"><strong>TLS Inspector</strong><small>Certificates</small></span>
+        </button>
       </nav>
 
       <!-- Backend telemetry -->
@@ -162,6 +180,15 @@
         </section>
 
         <main id="MailMetrixTools">
+
+          <!-- ============ SHARED RESULT (?share=ID) ============ -->
+          <section id="sharedTool" class="card hidden">
+            <div class="card-heading">
+              <h2>Shared result</h2>
+              <span id="sharedMeta" class="muted-chip">Loading…</span>
+            </div>
+            <div id="sharedResult" class="result waiting">Loading shared result…</div>
+          </section>
 
           <!-- ============ SMTP ============ -->
           <section id="smtpTool" class="tool-panel">
@@ -287,6 +314,7 @@
                   <div id="result" class="result waiting">
                     Enter your SMTP credentials and click <strong>Test connection &amp; send email</strong> to start.
                   </div>
+                  <div id="smtpActions" class="action-bar"></div>
                 </section>
               </div>
             </div>
@@ -325,6 +353,7 @@
                 <span class="muted-chip">MX · SPF · DMARC · DKIM</span>
               </div>
               <div id="dnsResult" class="result waiting">Enter a domain name above to inspect its email records.</div>
+              <div id="dnsActions" class="action-bar"></div>
             </section>
           </section>
 
@@ -360,6 +389,7 @@
                     <span class="muted-chip">Findings</span>
                   </div>
                   <div id="headerResult" class="result waiting">Paste raw email headers and run the analysis.</div>
+                  <div id="headerActions" class="action-bar"></div>
                 </section>
               </div>
             </div>
@@ -509,9 +539,140 @@
                     <span class="muted-chip">DNS TXT</span>
                   </div>
                   <div id="generatorResult" class="result waiting">Configure the options and generate your DNS records and DKIM keypair.</div>
+                  <div id="generatorActions" class="action-bar"></div>
                 </section>
               </div>
             </div>
+          </section>
+
+          <!-- ============ BLACKLIST ============ -->
+          <section id="blacklistTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">Reputation Diagnostics</span>
+                <h2>Check IP &amp; domain blacklists</h2>
+                <p>Query major DNS blacklists (Spamhaus, Barracuda, SpamCop and more) to see if a sending IP or domain is listed.</p>
+              </div>
+              <span class="tool-chip">DNSBL</span>
+            </div>
+
+            <section class="card">
+              <div class="card-heading"><h2>Target</h2></div>
+              <div class="form-grid dns-input-grid">
+                <div class="form-group">
+                  <label for="blTarget">IPv4 address or domain</label>
+                  <input id="blTarget" type="text" placeholder="203.0.113.10 or example.com" maxlength="253" autocomplete="off" />
+                </div>
+                <div class="form-group action-field">
+                  <label>&nbsp;</label>
+                  <button id="blButton" class="test-button" type="button">
+                    <span>Check blacklists</span><span class="button-arrow">→</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Blacklist results</h2>
+                <span class="muted-chip">12 lists</span>
+              </div>
+              <div id="blResult" class="result waiting">Enter an IP address or domain to check its reputation.</div>
+              <div id="blActions" class="action-bar"></div>
+            </section>
+          </section>
+
+          <!-- ============ DELIVERABILITY SCORE ============ -->
+          <section id="scoreTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">Deliverability</span>
+                <h2>Grade your domain's email health</h2>
+                <p>Combines MX, SPF, DKIM, DMARC, reverse DNS, blacklists, MTA-STS and TLS into one score with prioritised fixes.</p>
+              </div>
+              <span class="tool-chip">SCORE</span>
+            </div>
+
+            <section class="card">
+              <div class="card-heading"><h2>Domain</h2></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="scoreDomain">Domain name</label>
+                  <input id="scoreDomain" type="text" placeholder="example.com" maxlength="253" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="scoreSelector">DKIM selector (optional)</label>
+                  <input id="scoreSelector" type="text" placeholder="default" maxlength="63" autocomplete="off" />
+                </div>
+              </div>
+            </section>
+            <button id="scoreButton" class="test-button" type="button">
+              <span>Score domain</span><span class="button-arrow">→</span>
+            </button>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Deliverability report</h2>
+                <span class="muted-chip">A – F</span>
+              </div>
+              <div id="scoreResult" class="result waiting">Enter a domain to generate its deliverability grade.</div>
+              <div id="scoreActions" class="action-bar"></div>
+            </section>
+          </section>
+
+          <!-- ============ TLS INSPECTOR ============ -->
+          <section id="tlsTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">TLS Diagnostics</span>
+                <h2>Inspect mail server certificates</h2>
+                <p>Negotiate STARTTLS or implicit TLS and review the certificate chain, expiry, hostname match, protocol and cipher.</p>
+              </div>
+              <span class="tool-chip">TLS</span>
+            </div>
+
+            <section class="card">
+              <div class="card-heading"><h2>Server</h2></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="tlsHost">Hostname</label>
+                  <input id="tlsHost" type="text" placeholder="mail.example.com" maxlength="253" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="tlsPort">Port</label>
+                  <select id="tlsPort">
+                    <option value="25">25 · SMTP (STARTTLS)</option>
+                    <option value="587">587 · Submission (STARTTLS)</option>
+                    <option value="465">465 · SMTPS (implicit TLS)</option>
+                    <option value="2525">2525 · SMTP (STARTTLS)</option>
+                    <option value="993">993 · IMAPS</option>
+                    <option value="995">995 · POP3S</option>
+                    <option value="443">443 · HTTPS</option>
+                  </select>
+                </div>
+                <div class="form-group checkbox-group full">
+                  <label>Options</label>
+                  <div class="checkbox-wrapper">
+                    <label class="custom-checkbox">
+                      <input id="tlsVersions" type="checkbox" />
+                      <span>Probe supported TLS versions (slower)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <button id="tlsButton" class="test-button" type="button">
+              <span>Inspect certificate</span><span class="button-arrow">→</span>
+            </button>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>TLS report</h2>
+                <span class="muted-chip">Certificate · Chain</span>
+              </div>
+              <div id="tlsResult" class="result waiting">Enter a mail server hostname to inspect its TLS configuration.</div>
+              <div id="tlsActions" class="action-bar"></div>
+            </section>
           </section>
 
         </main>
@@ -521,7 +682,6 @@
             <span class="footer-brand">MailMetrix</span>
             <span class="version-badge" id="appVersion" title="Application version" hidden>v–</span>
           </div>
-          <span class="footer-meta">SMTP · DNS · Security</span>
         </footer>
       </div>
     </div>

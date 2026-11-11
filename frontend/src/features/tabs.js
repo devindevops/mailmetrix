@@ -2,7 +2,10 @@ const PANELS = {
   smtp: "smtpTool",
   dns: "dnsTool",
   headers: "headersTool",
-  generator: "generatorTool"
+  generator: "generatorTool",
+  blacklist: "blacklistTool",
+  score: "scoreTool",
+  tls: "tlsTool"
 };
 
 const FLOW_COPY = {
@@ -40,6 +43,33 @@ const FLOW_COPY = {
       ["Backend", "Node.js"],
       ["Generator", "Cryptography"],
       ["DNS", "Records"]
+    ]
+  },
+  blacklist: {
+    title: "Blacklist lookup path",
+    labels: [
+      ["Frontend", "Browser"],
+      ["Backend", "Node.js"],
+      ["DNSBL", "Lookups"],
+      ["Verdict", "Listings"]
+    ]
+  },
+  score: {
+    title: "Deliverability scoring path",
+    labels: [
+      ["Frontend", "Browser"],
+      ["Backend", "Node.js"],
+      ["Checks", "DNS · TLS"],
+      ["Score", "Grade & fixes"]
+    ]
+  },
+  tls: {
+    title: "TLS inspection path",
+    labels: [
+      ["Frontend", "Browser"],
+      ["Backend", "Node.js"],
+      ["Server", "Handshake"],
+      ["Certificate", "Analysis"]
     ]
   }
 };

@@ -11,7 +11,12 @@ services:
     environment:
       PORT: ${PORT:-4000}
       NODE_ENV: production
-      TRUST_PROXY: 1
+      TRUST_PROXY: 1            # set to 2 if another proxy sits in front of port 50000
+      SHARE_DIR: /app/data/shares
+      SHARE_TTL_DAYS: ${SHARE_TTL_DAYS:-7}
+
+    volumes:
+      - mailmetrix-data:/app/data
 
     expose:
       - "${PORT:-4000}"
@@ -115,3 +120,6 @@ services:
 networks:
   network:
     driver: bridge
+
+volumes:
+  mailmetrix-data:

@@ -928,3 +928,68 @@ html {
   cursor: default;
 }
 .version-badge[hidden] { display: none; }
+
+.mm-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11.5px; font-weight: 650; line-height: 1.5;
+  white-space: nowrap;
+}
+.mm-good  { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
+.mm-warn  { color: var(--warning-text); background: var(--warning-bg); border-color: var(--warning-border); }
+.mm-bad   { color: var(--danger-text);  background: var(--danger-bg);  border-color: var(--danger-border); }
+.mm-muted { color: var(--text-soft);    background: var(--surface-sunken); }
+
+.mm-note { color: var(--text-faint); font-size: 12.5px; }
+.result .mm-note { margin: 6px 0; }
+
+.mm-findings { list-style: none; padding-left: 0 !important; }
+.mm-findings li { margin: 7px 0; }
+
+/* Deliverability grade */
+.mm-score { display: flex; align-items: center; gap: 18px; margin-bottom: 8px; }
+.mm-score h3 { margin: 0 0 2px; }
+.mm-grade {
+  display: grid; place-items: center;
+  width: 76px; height: 76px; flex: 0 0 76px;
+  border-radius: 50%;
+  color: #fff; background: #6b7280;
+  font-size: 2.4rem; font-weight: 800;
+}
+.mm-grade-A { background: #16a34a; }
+.mm-grade-B { background: #65a30d; }
+.mm-grade-C { background: #ca8a04; }
+.mm-grade-D { background: #ea580c; }
+.mm-grade-F { background: #dc2626; }
+
+/* Share / export bar (sits OUTSIDE .result so it doesn't inherit the copy-button styling) */
+.action-bar:empty { display: none; }
+.action-bar { margin-top: 14px; }
+.action-bar-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.action-bar button {
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.action-bar button:hover:not(:disabled) { color: var(--primary); border-color: var(--primary-ring); background: var(--primary-soft); }
+.action-bar button:disabled { opacity: 0.55; cursor: wait; }
+.action-bar a { color: var(--primary); word-break: break-all; }
+
+/* Print / "PDF" export: only the result is printed */
+@media print {
+  body * { visibility: hidden; }
+  .mm-print-target, .mm-print-target * { visibility: visible; }
+  .mm-print-target {
+    position: absolute; left: 0; top: 0; width: 100%;
+    color: #000 !important; background: #fff !important; border: 0 !important;
+  }
+  .bg-grid-overlay { display: none; }
+}
