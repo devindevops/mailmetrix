@@ -140,26 +140,53 @@ async function mxIps(d, mx) {
 
 // RFC 7208 allows 10 DNS-querying terms. Stop querying as soon as the limit is passed:
 // the "depth" limit alone does not bound breadth (a record can contain hundreds of includes).
-async function spfLookups(d, domain, st = { n: 0, seen: new Set() }, depth = 0) {
-  if (depth > SPF_LIMIT || st.seen.has(domain)) return st.n;
-  st.seen.add(domain);
-  const rec = (await d.txt(domain)).find((t) => /^v=spf1\b/i.test(t));
-  if (!rec) return st.n;
+async function spfLookups(d, domain, st = null, depth = 0) {
+  const state = st || {
+    n: 0,
+    seen: new Set(),
+  };
+
+  if (depth > SPF_LIMIT || state.seen.has(domain)) {
+    return state.n;
+  }
+
+  state.seen.add(domain);
+
+  const rec = (await d.txt(domain)).find(
+    (t) => /^v=spf1\b/i.test(t)
+  );
+
+  if (!rec) return state.n;
+
   for (const term of rec.split(/\s+/).slice(1)) {
-    if (st.n > SPF_LIMIT) return st.n;
+    if (state.n > SPF_LIMIT) return state.n;
+
     const m = term.replace(/^[+\-~?]/, '');
+
     const isInclude = /^include:/i.test(m);
     const isRedirect = /^redirect=/i.test(m);
+
     if (isInclude || isRedirect) {
-      st.n += 1;
-      if (st.n > SPF_LIMIT) return st.n;
-      const target = m.slice(isInclude ? 8 : 9).toLowerCase();
-      if (isValidHostname(target)) await spfLookups(d, target, st, depth + 1); // skips macros / junk names
-    } else if (/^(a|mx)(:|\/|$)/i.test(m) || /^(ptr|exists:)/i.test(m)) {
-      st.n += 1;
+      state.n += 1;
+
+      if (state.n > SPF_LIMIT) return state.n;
+
+      const target = m
+        .slice(isInclude ? 8 : 9)
+        .toLowerCase();
+
+      if (isValidHostname(target)) {
+        await spfLookups(d, target, state, depth + 1);
+      }
+    } else if (
+      /^(a|mx)(:|\/|$)/i.test(m) ||
+      /^(ptr|exists:)/i.test(m)
+    ) {
+      state.n += 1;
     }
   }
-  return st.n;
+
+  return state.n;
 }
 
 async function checkMx(domain, mx) {

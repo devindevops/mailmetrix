@@ -11,14 +11,30 @@ const badge = (status) => {
 
 /* ---------- sharing: parsed analysis only, never the raw header text ---------- */
 
-const EMAIL_RE = /[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})/gi;
+const EMAIL_RE =
+  /\b[A-Z0-9._%+-]+@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}\b/gi;
 
 const maskEmails = (value) => {
-  if (typeof value === "string") return value.replace(EMAIL_RE, "***@$1");
-  if (Array.isArray(value)) return value.map(maskEmails);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, maskEmails(v)]));
+  if (typeof value === "string") {
+    return value.replace(EMAIL_RE, (email) => {
+      const separator = email.lastIndexOf("@");
+      return `***${email.slice(separator)}`;
+    });
   }
+
+  if (Array.isArray(value)) {
+    return value.map(maskEmails);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [
+        key,
+        maskEmails(val)
+      ])
+    );
+  }
+
   return value;
 };
 

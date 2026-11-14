@@ -70,10 +70,13 @@ export function initSMTP() {
   const port = $("smtpPort");
   const password = $("smtpPassword");
 
-  $("togglePassword")?.addEventListener("click", () => {
+  const toggle = $("togglePassword");
+  toggle?.addEventListener("click", () => {
     const visible = password.type === "text";
     password.type = visible ? "password" : "text";
-    $("togglePassword").textContent = visible ? "Show" : "Hide";
+    toggle.textContent = visible ? "Show" : "Hide";
+    // The visible word alone ("Show") doesn't say what is shown; keep the accessible name in sync.
+    toggle.setAttribute("aria-label", visible ? "Show password" : "Hide password");
   });
 
   security?.addEventListener("change", () => {
