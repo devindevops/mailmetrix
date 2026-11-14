@@ -65,7 +65,7 @@ let totalBytes = 0;
 })();
 
 function removeShare(id) {
-  try { fs.rmSync(file(id), { force: true }); } catch { /* ignore */ }
+  fs.promises.rm(file(id), { force: true }).catch(() => {});
   const meta = index.get(id);
   if (meta) {
     totalBytes -= meta.size;
@@ -107,7 +107,7 @@ function allow(key) {
   return true;
 }
 
-function create(type, data, ip) {
+async function create(type, data, ip) {
   const key = clientKey(ip); // throws NO_CLIENT_IP (-> 500 + log) if the route did not pass req.ip
   if (!TYPES.has(type)) throw fail('Unknown result type', 'BAD_INPUT');
   if (!data || typeof data !== 'object') throw fail('Result data must be an object', 'BAD_INPUT');
@@ -126,18 +126,18 @@ function create(type, data, ip) {
 
   const id = crypto.randomBytes(9).toString('base64url');
   const tmp = path.join(DIR, `${id}.tmp`); // not *.json, so it is never served or indexed half-written
-  fs.writeFileSync(tmp, body, { mode: 0o600 });
-  fs.renameSync(tmp, file(id));
+  await fs.promises.writeFile(tmp, body, { mode: 0o600 });
+  await fs.promises.rename(tmp, file(id));
   index.set(id, { exp: now + TTL_MS, size });
   totalBytes += size;
   return { id, expiresAt: new Date(now + TTL_MS).toISOString() };
 }
 
-function get(id) {
+async function get(id) {
   if (!ID_RE.test(id)) return null;
   let rec;
   try {
-    rec = JSON.parse(fs.readFileSync(file(id), 'utf8'));
+    rec = JSON.parse(await fs.promises.readFile(file(id), 'utf8'));
   } catch (e) {
     if (e.code !== 'ENOENT') removeShare(id); // corrupt file: drop it
     else if (index.has(id)) removeShare(id);  // index drifted from disk
@@ -151,15 +151,16 @@ function get(id) {
   return rec;
 }
 
-function cleanup() {
+async function cleanup() {
   const now = Date.now();
   for (const [id, meta] of index) {
     if (meta.exp < now) removeShare(id);
   }
   // remove stray temp files left by a crash mid-write
   try {
-    for (const f of fs.readdirSync(DIR)) {
-      if (f.endsWith('.tmp')) fs.rmSync(path.join(DIR, f), { force: true });
+    const files = await fs.promises.readdir(DIR);
+    for (const f of files) {
+      if (f.endsWith('.tmp')) await fs.promises.rm(path.join(DIR, f), { force: true });
     }
   } catch { /* ignore */ }
   for (const [ip, h] of hits) if (h.resetAt < now) hits.delete(ip);

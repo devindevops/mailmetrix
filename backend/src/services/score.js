@@ -23,10 +23,34 @@ const TARGET_TTL_MS = num(process.env.SCORE_TARGET_TTL_SECONDS, 900) * 1000;   /
 const MAX_DNS_QUERIES = num(process.env.SCORE_MAX_DNS_QUERIES, 80);            // per request (normal use is ~55 max)
 const DEADLINE_MS = num(process.env.SCORE_DEADLINE_SECONDS, 25) * 1000;        // per request
 const MAX_CONCURRENT = num(process.env.SCORE_MAX_CONCURRENT, 8);               // simultaneous uncached runs
+const MAX_QUEUE = num(process.env.SCORE_MAX_QUEUE, 16);                        // queued requests before 503
 const SPF_LIMIT = 10;                                                          // RFC 7208 section 4.6.4
 const MAX_PTR_NAMES = 2;
 
 const fail = (msg, code) => Object.assign(new Error(msg), { code });
+
+let active = 0;
+const waiters = [];
+
+function acquireSlot() {
+  if (active < MAX_CONCURRENT) {
+    active += 1;
+    return Promise.resolve();
+  }
+  if (waiters.length >= MAX_QUEUE) {
+    return Promise.reject(fail('Scoring is busy, try again shortly', 'BUSY'));
+  }
+  return new Promise((resolve) => waiters.push(resolve));
+}
+
+function releaseSlot() {
+  const next = waiters.shift();
+  if (next) {
+    next();
+  } else {
+    active -= 1;
+  }
+}
 
 // Cache of promises: concurrent identical requests share one run, failures are never cached.
 function ttlCache(ttlMs, max) {
@@ -66,7 +90,6 @@ const tlsCache = ttlCache(TARGET_TTL_MS, 1000);
 const dnsblCache = ttlCache(TARGET_TTL_MS, 2000);
 const dnsblWindow = makeWindow(num(process.env.SCORE_DNSBL_IPS_PER_HOUR, 300), 3600000);
 const tlsWindow = makeWindow(num(process.env.SCORE_TLS_PROBES_PER_HOUR, 120), 3600000);
-let active = 0;
 
 // Per-request DNS helper: memoised (no duplicate queries), budgeted and deadline-bound.
 function makeDns() {
@@ -266,8 +289,7 @@ function grade(pct) {
 }
 
 async function run(domain, selector) {
-  if (active >= MAX_CONCURRENT) throw fail('Scoring is busy, try again shortly', 'BUSY');
-  active += 1;
+  await acquireSlot();
   try {
     const d = makeDns();
     const mx = await getMx(d, domain);
@@ -289,7 +311,7 @@ async function run(domain, selector) {
 
     return { domain, checkedAt: new Date().toISOString(), score: pct, grade: grade(pct), skipped: checks.filter((c) => c.status === 'skip').map((c) => c.label), checks, fixes };
   } finally {
-    active -= 1;
+    releaseSlot();
   }
 }
 

@@ -15,7 +15,7 @@ function openSocket(ip, port) {
     s.setTimeout(TIMEOUT);
     s.once('connect', () => { s.setTimeout(0); resolve(s); });
     s.once('timeout', () => { s.destroy(); reject(err('Connection timed out', 'TIMEOUT')); });
-    s.once('error', reject);
+    s.once('error', (e) => { s.destroy(); reject(e); });
   });
 }
 
@@ -29,9 +29,18 @@ function readReply(sock) {
       if (buf.endsWith('\r\n') && buf.split('\r\n').some((l) => /^\d{3} /.test(l))) { cleanup(); resolve(buf); }
     };
     const onErr = (e) => { cleanup(); reject(e); };
-    const cleanup = () => { clearTimeout(t); sock.off('data', onData); sock.off('error', onErr); };
+    const onClose = () => { cleanup(); reject(err('Connection closed by remote server', 'ECONNRESET')); };
+    const cleanup = () => {
+      clearTimeout(t);
+      sock.off('data', onData);
+      sock.off('error', onErr);
+      sock.off('end', onClose);
+      sock.off('close', onClose);
+    };
     sock.on('data', onData);
     sock.on('error', onErr);
+    sock.on('end', onClose);
+    sock.on('close', onClose);
   });
 }
 
@@ -60,9 +69,17 @@ async function secureConnect({ ip, host, port, mode, tlsOpts = {} }) {
       rejectUnauthorized: false, // we inspect, then report trust problems ourselves
       ...tlsOpts,
     });
-    sock.setTimeout(TIMEOUT, () => { sock.destroy(); reject(err('TLS handshake timed out', 'TIMEOUT')); });
+    sock.setTimeout(TIMEOUT, () => {
+      sock.destroy();
+      if (plain) plain.destroy();
+      reject(err('TLS handshake timed out', 'TIMEOUT'));
+    });
     sock.once('secureConnect', () => { sock.setTimeout(0); resolve(sock); });
-    sock.once('error', (e) => { if (plain) plain.destroy(); reject(e); });
+    sock.once('error', (e) => {
+      sock.destroy();
+      if (plain) plain.destroy();
+      reject(e);
+    });
   });
 }
 
@@ -93,15 +110,19 @@ function buildChain(leaf) {
 }
 
 async function probeVersions(base) {
-  const out = {};
-  for (const v of ['TLSv1', 'TLSv1.1', 'TLSv1.2', 'TLSv1.3']) {
-    try {
-      const s = await secureConnect({ ...base, tlsOpts: { minVersion: v, maxVersion: v, ciphers: 'ALL:@SECLEVEL=0' } });
-      s.destroy();
-      out[v] = true;
-    } catch { out[v] = false; }
-  }
-  return out;
+  const versions = ['TLSv1', 'TLSv1.1', 'TLSv1.2', 'TLSv1.3'];
+  const results = await Promise.all(
+    versions.map(async (v) => {
+      try {
+        const s = await secureConnect({ ...base, tlsOpts: { minVersion: v, maxVersion: v, ciphers: 'ALL:@SECLEVEL=0' } });
+        s.destroy();
+        return [v, true];
+      } catch {
+        return [v, false];
+      }
+    })
+  );
+  return Object.fromEntries(results);
 }
 
 async function inspect({ host, port = 25, mode, versions = false }) {
