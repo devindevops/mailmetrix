@@ -66,6 +66,8 @@ async function secureConnect({ ip, host, port, mode, tlsOpts = {} }) {
     const sock = tls.connect({
       ...(plain ? { socket: plain } : { host: ip, port }),
       servername: net.isIP(host) ? undefined : host,
+      // codeql[js/disabling-certificate-validation] Diagnostic scanner must connect to inspect untrusted/expired certificates and report validation status manually.
+      // lgtm[js/disabling-certificate-validation]
       rejectUnauthorized: false, // we inspect, then report trust problems ourselves
       ...tlsOpts,
     });

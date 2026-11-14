@@ -7,7 +7,7 @@ const path = require('path');
 const crypto = require('crypto');
 const net = require('net');
 
-const DIR = process.env.SHARE_DIR || path.join(__dirname, '..', '..', 'data', 'shares');
+const DIR = path.resolve(process.env.SHARE_DIR || path.join(__dirname, '..', '..', 'data', 'shares'));
 const TTL_MS = (Number(process.env.SHARE_TTL_DAYS) || 2) * 86400000;
 const MAX_BYTES = 256 * 1024;
 const MAX_FILES = Number(process.env.SHARE_MAX_FILES) || 5000;
@@ -39,7 +39,15 @@ const ID_RE = /^[A-Za-z0-9_-]{8,16}$/;
 fs.mkdirSync(DIR, { recursive: true });
 
 const fail = (msg, code) => Object.assign(new Error(msg), { code });
-const file = (id) => path.join(DIR, `${id}.json`);
+
+function file(id) {
+  if (typeof id !== 'string') return null;
+  const safeId = path.basename(id);
+  if (!ID_RE.test(safeId)) return null;
+  const resolved = path.resolve(DIR, `${safeId}.json`);
+  if (!resolved.startsWith(DIR + path.sep)) return null;
+  return resolved;
+}
 
 // --- in-memory index (avoids scanning the directory on every create) ---
 // id -> { exp, size }. A Map iterates in insertion order, so the first key is the oldest share.
@@ -51,9 +59,10 @@ let totalBytes = 0;
   for (const f of fs.readdirSync(DIR)) {
     if (!f.endsWith('.json')) continue;
     const id = f.slice(0, -5);
-    if (!ID_RE.test(id)) continue;
+    const target = file(id);
+    if (!target) continue;
     try {
-      const st = fs.statSync(path.join(DIR, f));
+      const st = fs.statSync(target);
       entries.push({ id, size: st.size, exp: st.mtimeMs + TTL_MS, t: st.mtimeMs });
     } catch { /* file vanished, ignore */ }
   }
@@ -65,7 +74,10 @@ let totalBytes = 0;
 })();
 
 function removeShare(id) {
-  fs.promises.rm(file(id), { force: true }).catch(() => {});
+  const target = file(id);
+  if (target) {
+    fs.promises.rm(target, { force: true }).catch(() => {});
+  }
   const meta = index.get(id);
   if (meta) {
     totalBytes -= meta.size;
@@ -125,19 +137,23 @@ async function create(type, data, ip) {
   }
 
   const id = crypto.randomBytes(9).toString('base64url');
-  const tmp = path.join(DIR, `${id}.tmp`); // not *.json, so it is never served or indexed half-written
+  const safeId = path.basename(id);
+  const tmp = path.resolve(DIR, `${safeId}.tmp`); // not *.json, so it is never served or indexed half-written
   await fs.promises.writeFile(tmp, body, { mode: 0o600 });
-  await fs.promises.rename(tmp, file(id));
+  const target = file(id);
+  if (!target) throw fail('Failed to resolve share destination', 'INTERNAL_ERROR');
+  await fs.promises.rename(tmp, target);
   index.set(id, { exp: now + TTL_MS, size });
   totalBytes += size;
   return { id, expiresAt: new Date(now + TTL_MS).toISOString() };
 }
 
 async function get(id) {
-  if (!ID_RE.test(id)) return null;
+  const target = file(id);
+  if (!target) return null;
   let rec;
   try {
-    rec = JSON.parse(await fs.promises.readFile(file(id), 'utf8'));
+    rec = JSON.parse(await fs.promises.readFile(target, 'utf8'));
   } catch (e) {
     if (e.code !== 'ENOENT') removeShare(id); // corrupt file: drop it
     else if (index.has(id)) removeShare(id);  // index drifted from disk
@@ -160,7 +176,13 @@ async function cleanup() {
   try {
     const files = await fs.promises.readdir(DIR);
     for (const f of files) {
-      if (f.endsWith('.tmp')) await fs.promises.rm(path.join(DIR, f), { force: true });
+      if (f.endsWith('.tmp')) {
+        const safeTmp = path.basename(f);
+        const tmpPath = path.resolve(DIR, safeTmp);
+        if (tmpPath.startsWith(DIR + path.sep)) {
+          await fs.promises.rm(tmpPath, { force: true });
+        }
+      }
     }
   } catch { /* ignore */ }
   for (const [ip, h] of hits) if (h.resetAt < now) hits.delete(ip);
