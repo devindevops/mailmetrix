@@ -1,5 +1,6 @@
 'use strict';
 // SSRF protection: only allow connections to public IPs.
+// Single canonical blocklist: import isPrivateIp from here everywhere (tls, score, blacklist, smtp).
 const dns = require('dns').promises;
 const net = require('net');
 
@@ -11,31 +12,57 @@ function blocked(msg) {
   return e;
 }
 
-function isPrivateIPv4(ip) {
-  const [a, b] = ip.split('.').map(Number);
-  return (
-    a === 0 || a === 10 || a === 127 || a >= 224 ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 198 && (b === 18 || b === 19))
-  );
-}
+// net.BlockList parses and normalises addresses itself, so non-canonical IPv6 spellings
+// (0:0:0:0:0:ffff:7f00:1, ::127.0.0.1, ...) cannot slip past string-prefix checks.
+//
+// Two separate lists on purpose: Node matches IPv4 addresses against IPv6 rules as
+// IPv4-mapped (::ffff:a.b.c.d), so a v6 rule like ::/8 would match every IPv4 address.
+const BLOCK4 = new net.BlockList();
+const BLOCK6 = new net.BlockList();
+const v4 = (addr, prefix) => BLOCK4.addSubnet(addr, prefix, 'ipv4');
+const v6 = (addr, prefix) => BLOCK6.addSubnet(addr, prefix, 'ipv6');
 
-function isPrivateIPv6(ip) {
-  const l = ip.toLowerCase();
-  if (l === '::' || l === '::1') return true;
-  if (l.startsWith('::ffff:')) {
-    const v4 = l.slice(7);
-    return net.isIPv4(v4) ? isPrivateIPv4(v4) : true;
-  }
-  return /^(fc|fd|fe[89ab])/.test(l);
-}
+// --- IPv4 ---
+v4('0.0.0.0', 8);          // "this" network
+v4('10.0.0.0', 8);         // private
+v4('100.64.0.0', 10);      // CGNAT
+v4('127.0.0.0', 8);        // loopback
+v4('169.254.0.0', 16);     // link-local / cloud metadata
+v4('172.16.0.0', 12);      // private
+v4('192.0.0.0', 24);       // IETF protocol assignments
+v4('192.0.2.0', 24);       // TEST-NET-1
+v4('192.88.99.0', 24);     // deprecated 6to4 relay anycast
+v4('192.168.0.0', 16);     // private
+v4('198.18.0.0', 15);      // benchmarking
+v4('198.51.100.0', 24);    // TEST-NET-2
+v4('203.0.113.0', 24);     // TEST-NET-3
+v4('224.0.0.0', 4);        // multicast
+v4('240.0.0.0', 4);        // reserved + broadcast
 
+// --- IPv6 ---
+v6('::', 8);               // unspecified, loopback, IPv4-compatible, IPv4-mapped (::ffff:0:0/96) and other reserved
+v6('64:ff9b::', 96);       // NAT64 (embeds an IPv4 address)
+v6('64:ff9b:1::', 48);     // local-use NAT64
+v6('100::', 64);           // discard-only
+v6('2001::', 23);          // IETF protocol assignments incl. Teredo (2001::/32), ORCHID, benchmarking
+v6('2001:db8::', 32);      // documentation
+v6('2002::', 16);          // 6to4 (embeds an IPv4 address)
+v6('3fff::', 20);          // documentation (RFC 9637)
+v6('5f00::', 16);          // SRv6 SIDs
+v6('fc00::', 7);           // unique local
+v6('fe80::', 10);          // link-local
+v6('fec0::', 10);          // deprecated site-local
+v6('ff00::', 8);           // multicast
+
+// Returns true for anything that must not be contacted. Fails closed on garbage input.
 function isPrivateIp(ip) {
-  if (net.isIPv4(ip)) return isPrivateIPv4(ip);
-  if (net.isIPv6(ip)) return isPrivateIPv6(ip);
+  if (typeof ip !== 'string' || ip.includes('%')) return true; // also rejects zone IDs (fe80::1%eth0)
+  try {
+    if (net.isIPv4(ip)) return BLOCK4.check(ip, 'ipv4');
+    if (net.isIPv6(ip)) return BLOCK6.check(ip, 'ipv6');
+  } catch {
+    return true;
+  }
   return true;
 }
 
@@ -64,4 +91,4 @@ async function resolvePublic(host) {
   return addrs.map((a) => a.address);
 }
 
-module.exports = { isPrivateIp, isValidHostname, resolvePublic, HOST_RE };
+module.exports = { isPrivateIp, isBlockedIp: isPrivateIp, isValidHostname, resolvePublic, HOST_RE };

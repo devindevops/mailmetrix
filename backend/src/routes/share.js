@@ -8,7 +8,7 @@ router.use(express.json({ limit: '300kb' }));
 
 router.post('/', (req, res) => {
   try {
-    res.status(201).json(service.create(req.body?.type, req.body?.data));
+    res.status(201).json(service.create(req.body?.type, req.body?.data, req.ip));
   } catch (e) { sendError(res, e); }
 });
 
