@@ -35,7 +35,7 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Check backend JavaScript syntax
         shell: bash

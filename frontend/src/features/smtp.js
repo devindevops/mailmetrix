@@ -10,15 +10,20 @@ const setState = (id, state, text) => {
 };
 
 // Share/export the diagnostic OUTPUT only: never the username, password, sender, recipient list input or message body.
-const shareResult = (status, title, data) =>
-  attachActions("smtp", {
-    status,
-    title,
-    host: $("smtpHost").value.trim(),
-    port: Number($("smtpPort").value),
-    security: $("smtpSecurity").value,
-    ...data
-  }, "smtpActions", "result");
+// Fire-and-forget by design: a failed share must never turn a finished test into an error, and
+// attachActions may be sync or async, so both a throw and a rejection are contained here.
+const shareResult = (status, title, data) => {
+  void Promise.resolve()
+    .then(() => attachActions("smtp", {
+      status,
+      title,
+      host: $("smtpHost").value.trim(),
+      port: Number($("smtpPort").value),
+      security: $("smtpSecurity").value,
+      ...data
+    }, "smtpActions", "result"))
+    .catch((error) => console.warn("Could not attach share actions:", error));
+};
 
 const showResult = (type, title, data = {}) => {
   const el = $("result");
@@ -41,10 +46,19 @@ const showResult = (type, title, data = {}) => {
 };
 
 // Reachability check (shared) + sidebar status badge update (SMTP-specific UI).
+// Never rejects: any failure (network error, missing badge elements) counts as "unreachable".
+// Callers can therefore await it without a try/catch, or fire it with `void`.
 async function backendHealth() {
-  const ok = await checkBackend();
-  $("backendStatus").textContent = ok ? "Connected" : "Unavailable";
-  $("backendDot").className = `status-dot ${ok ? "online" : "offline"}`;
+  let ok = false;
+  try {
+    ok = Boolean(await checkBackend());
+  } catch {
+    ok = false;
+  }
+  const status = $("backendStatus");
+  const dot = $("backendDot");
+  if (status) status.textContent = ok ? "Connected" : "Unavailable";
+  if (dot) dot.className = `status-dot ${ok ? "online" : "offline"}`;
   return ok;
 }
 
@@ -129,13 +143,21 @@ export function initSMTP() {
         })
       });
 
-      const data = await response.json();
+      // Rate limiter (429), proxy errors (502/503) and the like may not return JSON.
+      const data = (await response.json().catch(() => null)) || {};
 
-      if (!response.ok && data.stage === "smtp_authentication") {
+      // Only "email_sending" means the SMTP login worked and the send itself failed. Any other
+      // failure (validation, host not allowed, rate limit, busy, auth, proxy error) is a failure
+      // BEFORE credentials were verified, so it must not be reported as "credentials verified".
+      if (!response.ok && data.stage !== "email_sending") {
+        const isAuth = data.stage === "smtp_authentication";
+        const isValidation = data.stage === "validation";
+        const title = isAuth ? "SMTP Authentication Failed" : isValidation ? "Validation Failed" : "Request Failed";
+        const failure = { ...data, error: data.error || `The server rejected the request (HTTP ${response.status}).` };
         flowError("flowSMTP");
-        setState("stageSMTP", "error", "SMTP connection or authentication failed.");
-        showResult("error", "SMTP Authentication Failed", data);
-        shareResult("error", "SMTP Authentication Failed", data);
+        setState("stageSMTP", "error", isAuth ? "SMTP connection or authentication failed." : "The request was rejected before connecting to the SMTP server.");
+        showResult("error", title, failure);
+        if (isAuth) shareResult("error", title, failure);
         return;
       }
 
@@ -166,5 +188,6 @@ export function initSMTP() {
     }
   });
 
-  backendHealth();
+  // Fire-and-forget: updates the sidebar badge. backendHealth() never rejects.
+  void backendHealth();
 }

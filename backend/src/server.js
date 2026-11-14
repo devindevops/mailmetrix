@@ -13,7 +13,8 @@ const scoreRoutes = require("./routes/score");
 const tlsRoutes = require("./routes/tls");
 const shareRoutes = require("./routes/share");
 
-const app = express();
+const app = express();  
+app.disable("x-powered-by"); // don't advertise "X-Powered-By: Express" on every response
 const PORT = Number(process.env.PORT || 4000);
 
 /* ------------------------------------------------------------------ */
