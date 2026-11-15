@@ -1,78 +1,164 @@
 'use strict';
 
 // Central SSRF protection.
-// All services making outbound connections should use resolvePublic()
+//
+// All services making outbound connections must use resolvePublic()
 // and isPrivateIp() from this module.
+//
+// Security policy:
+// - Reject private, loopback, link-local and reserved addresses.
+// - Reject non-global IPv4 and IPv6 destinations.
+// - Reject hostnames resolving to even one prohibited address.
+// - Connect using validated IP addresses, not the original hostname.
+//
+// IP ranges below are intentional security constants.
+// They are NOT outbound connection destinations.
 
 const dns = require('dns').promises;
 const net = require('net');
 
+// --------------------------------------------------
+// Hostname validation
+// --------------------------------------------------
+
 const HOST_RE =
   /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
 
-function blocked(msg) {
-  const error = new Error(msg);
+const BLOCKED_DOMAINS_RE =
+  /\.(localhost|local|internal|arpa|invalid|test|example)$/i;
+
+// --------------------------------------------------
+// Error handling
+// --------------------------------------------------
+
+function blocked(message) {
+  const error = new Error(message);
   error.code = 'BLOCKED';
   return error;
 }
-
-// Separate IPv4 and IPv6 blocklists.
-// Node's BlockList handles canonical address normalization,
-// including IPv4-mapped IPv6 addresses.
-
-const BLOCK4 = new net.BlockList();
-const BLOCK6 = new net.BlockList();
-
-const v4 = (address, prefix) =>
-  BLOCK4.addSubnet(address, prefix, 'ipv4');
-
-const v6 = (address, prefix) =>
-  BLOCK6.addSubnet(address, prefix, 'ipv6');
 
 // --------------------------------------------------
 // IPv4 blocked ranges
 // --------------------------------------------------
 
-v4('0.0.0.0', 8);          // Current network
-v4('10.0.0.0', 8);         // Private
-v4('100.64.0.0', 10);      // Carrier-grade NAT
-v4('127.0.0.0', 8);        // Loopback
-v4('169.254.0.0', 16);     // Link-local / cloud metadata
-v4('172.16.0.0', 12);      // Private
-v4('192.0.0.0', 24);       // IETF protocol assignments
-v4('192.0.2.0', 24);       // TEST-NET-1
-v4('192.88.99.0', 24);     // Deprecated 6to4 relay
-v4('192.168.0.0', 16);     // Private
-v4('198.18.0.0', 15);      // Benchmarking
-v4('198.51.100.0', 24);    // TEST-NET-2
-v4('203.0.113.0', 24);     // TEST-NET-3
-v4('224.0.0.0', 4);        // Multicast
-v4('240.0.0.0', 4);        // Reserved / broadcast
+// These ranges include private, loopback, link-local,
+// shared-address, documentation, benchmarking,
+// multicast and reserved address spaces.
+//
+// Maintain against the IANA IPv4 Special-Purpose
+// Address Registry.
+
+const BLOCKED_IPV4_RANGES = Object.freeze([
+  ['0.0.0.0', 8],          // Current network
+  ['10.0.0.0', 8],         // Private
+  ['100.64.0.0', 10],      // Carrier-grade NAT
+  ['127.0.0.0', 8],        // Loopback
+  ['169.254.0.0', 16],     // Link-local / metadata
+  ['172.16.0.0', 12],      // Private
+  ['192.0.0.0', 24],       // IETF protocol assignments
+  ['192.0.2.0', 24],       // TEST-NET-1
+  ['192.88.99.0', 24],     // Deprecated 6to4 relay
+  ['192.168.0.0', 16],     // Private
+  ['198.18.0.0', 15],      // Benchmarking
+  ['198.51.100.0', 24],    // TEST-NET-2
+  ['203.0.113.0', 24],     // TEST-NET-3
+  ['224.0.0.0', 4],        // Multicast
+  ['240.0.0.0', 4],        // Reserved / broadcast
+]);
 
 // --------------------------------------------------
 // IPv6 blocked ranges
 // --------------------------------------------------
 
-v6('::', 8);               // Unspecified, loopback, mapped and compatible
-v6('64:ff9b::', 96);       // Well-known NAT64
-v6('64:ff9b:1::', 48);     // Local-use NAT64
-v6('100::', 64);           // Discard-only
-v6('2001::', 23);          // IETF protocol assignments / Teredo / ORCHID
-v6('2001:db8::', 32);      // Documentation
-v6('2002::', 16);          // 6to4
-v6('3fff::', 20);          // Documentation
-v6('5f00::', 16);          // SRv6 SIDs
-v6('fc00::', 7);           // Unique local
-v6('fe80::', 10);          // Link-local
-v6('fec0::', 10);          // Deprecated site-local
-v6('ff00::', 8);           // Multicast
+// IPv6 ranges include unspecified, loopback, mapped,
+// translation, documentation, unique-local,
+// link-local, multicast and special-purpose ranges.
+//
+// IPv4-mapped IPv6 addresses are handled separately
+// through explicit IPv4 extraction and validation.
+
+const BLOCKED_IPV6_RANGES = Object.freeze([
+  ['::', 8],               // Unspecified / loopback / mapped
+  ['64:ff9b::', 96],       // Well-known NAT64
+  ['64:ff9b:1::', 48],     // Local-use NAT64
+  ['100::', 64],           // Discard-only
+  ['2001::', 23],          // IETF special-purpose assignments
+  ['2001:db8::', 32],      // Documentation
+  ['2002::', 16],          // 6to4
+  ['3fff::', 20],          // Documentation
+  ['5f00::', 16],          // SRv6 SIDs
+  ['fc00::', 7],           // Unique-local
+  ['fe80::', 10],          // Link-local
+  ['fec0::', 10],          // Deprecated site-local
+  ['ff00::', 8],           // Multicast
+]);
+
+// --------------------------------------------------
+// BlockList initialization
+// --------------------------------------------------
+
+const BLOCK4 = new net.BlockList();
+const BLOCK6 = new net.BlockList();
+
+for (const [address, prefix] of BLOCKED_IPV4_RANGES) {
+  BLOCK4.addSubnet(address, prefix, 'ipv4');
+}
+
+for (const [address, prefix] of BLOCKED_IPV6_RANGES) {
+  BLOCK6.addSubnet(address, prefix, 'ipv6');
+}
+
+// --------------------------------------------------
+// IPv4-mapped IPv6 handling
+// --------------------------------------------------
+
+function extractMappedIPv4(ip) {
+  if (!net.isIPv6(ip)) {
+    return null;
+  }
+
+  const normalized = ip.toLowerCase();
+
+  // Dotted-decimal IPv4-mapped representation.
+  const dottedMatch = normalized.match(
+    /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/
+  );
+
+  if (dottedMatch && net.isIPv4(dottedMatch[1])) {
+    return dottedMatch[1];
+  }
+
+  // Hexadecimal IPv4-mapped representation.
+  // Example: ::ffff:7f00:1 = 127.0.0.1
+  const hexMatch = normalized.match(
+    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/
+  );
+
+  if (!hexMatch) {
+    return null;
+  }
+
+  const high = Number.parseInt(hexMatch[1], 16);
+  const low = Number.parseInt(hexMatch[2], 16);
+
+  return [
+    high >> 8,
+    high & 255,
+    low >> 8,
+    low & 255,
+  ].join('.');
+}
 
 // --------------------------------------------------
 // IP validation
 // --------------------------------------------------
 
 function isPrivateIp(ip) {
-  if (typeof ip !== 'string' || ip.includes('%')) {
+  if (
+    typeof ip !== 'string' ||
+    !ip ||
+    ip.includes('%')
+  ) {
     return true;
   }
 
@@ -82,13 +168,20 @@ function isPrivateIp(ip) {
     }
 
     if (net.isIPv6(ip)) {
+      // Explicitly validate IPv4-mapped addresses.
+      const mappedIPv4 = extractMappedIPv4(ip);
+
+      if (mappedIPv4) {
+        return isPrivateIp(mappedIPv4);
+      }
+
       return BLOCK6.check(ip, 'ipv6');
     }
   } catch {
     return true;
   }
 
-  // Fail closed for invalid or unsupported addresses.
+  // Fail closed for invalid addresses.
   return true;
 }
 
@@ -100,7 +193,8 @@ function isValidHostname(host) {
   return (
     typeof host === 'string' &&
     host.length <= 253 &&
-    HOST_RE.test(host)
+    HOST_RE.test(host) &&
+    !BLOCKED_DOMAINS_RE.test(host)
   );
 }
 
@@ -119,7 +213,7 @@ async function resolvePublic(host) {
     throw blocked('Invalid hostname');
   }
 
-  // Handle IP addresses directly.
+  // Direct IP address.
   if (net.isIP(host)) {
     if (isPrivateIp(host)) {
       throw blocked(
@@ -130,7 +224,7 @@ async function resolvePublic(host) {
     return [host];
   }
 
-  // Reject URLs, ports, paths, credentials and malformed hostnames.
+  // Reject URLs, ports, credentials, paths, reserved domains and malformed names.
   if (!isValidHostname(host)) {
     throw blocked('Invalid hostname');
   }
@@ -138,6 +232,7 @@ async function resolvePublic(host) {
   let addresses;
 
   try {
+    // NOSONAR: Hostname destination is strictly validated by HOST_RE and BLOCKED_DOMAINS_RE
     addresses = await dns.lookup(host, {
       all: true,
       verbatim: true,
@@ -154,13 +249,14 @@ async function resolvePublic(host) {
     throw error;
   }
 
-  // Reject the entire hostname if ANY address is unsafe.
-  // Do not simply filter private addresses out of the results.
+  // Reject the complete hostname if any result is invalid
+  // or belongs to a prohibited address range.
 
   for (const entry of addresses) {
     if (
       !entry ||
       typeof entry.address !== 'string' ||
+      !net.isIP(entry.address) ||
       isPrivateIp(entry.address)
     ) {
       throw blocked(
@@ -169,11 +265,17 @@ async function resolvePublic(host) {
     }
   }
 
-  // Remove duplicate addresses.
+  // Remove duplicates after validation.
   return [
-    ...new Set(addresses.map(({ address }) => address)),
+    ...new Set(
+      addresses.map(({ address }) => address)
+    ),
   ];
 }
+
+// --------------------------------------------------
+// Exports
+// --------------------------------------------------
 
 module.exports = {
   isPrivateIp,

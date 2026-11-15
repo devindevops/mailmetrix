@@ -3,7 +3,7 @@
 const net = require('net');
 const tls = require('tls');
 
-const { resolvePublic } = require('./netguard');
+const { resolvePublic, isValidHostname, isPrivateIp } = require('./netguard');
 
 const ALLOWED_PORTS = new Set([
   25,
@@ -33,7 +33,12 @@ const err = (msg, code) =>
 // --------------------------------------------------
 
 function openSocket(ip, port) {
+  if (!net.isIP(ip) || isPrivateIp(ip)) {
+    throw err('Invalid or blocked destination IP address', 'BLOCKED');
+  }
+
   return new Promise((resolve, reject) => {
+    // NOSONAR: Destination IP is verified against private and reserved address blocklists via netguard
     const socket = net.connect({
       host: ip,
       port,
@@ -238,6 +243,12 @@ async function secureConnect({
       rejectUnauthorized: false,
     };
 
+    if (!plain && (!net.isIP(ip) || isPrivateIp(ip))) {
+      fail(err('Invalid or blocked destination IP address', 'BLOCKED'));
+      return;
+    }
+
+    // NOSONAR: Destination IP is verified against private and reserved address blocklists via netguard
     const socket = tls.connect(options);
 
     const cleanup = () => {

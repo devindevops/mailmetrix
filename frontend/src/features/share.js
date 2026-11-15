@@ -136,9 +136,15 @@ export function bindTool({ button, enterOn = [], out, actions, type, busyMsg, pr
       setResult(out, "error", e.message);
     } finally { setBusy(button, false); }
   };
-  button.addEventListener("click", run);
+  button.addEventListener("click", () => {
+    void run();
+  });
+
   enterOn.forEach((i) => i?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); run(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void run();
+    }
   }));
 }
 
