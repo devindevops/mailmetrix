@@ -70,9 +70,9 @@ const BLOCKED_IPV4_RANGES = Object.freeze([
 // IPv6 blocked ranges
 // --------------------------------------------------
 
-// IPv6 ranges include unspecified, loopback, mapped,
-// translation, documentation, unique-local,
-// link-local, multicast and special-purpose ranges.
+// IPv6 must first belong to the global-unicast 2000::/3 range.
+// This blocklist then excludes special-purpose ranges within it,
+// including documentation, transition and multicast allocations.
 //
 // IPv4-mapped IPv6 addresses are handled separately
 // through explicit IPv4 extraction and validation.
@@ -99,6 +99,11 @@ const BLOCKED_IPV6_RANGES = Object.freeze([
 
 const BLOCK4 = new net.BlockList();
 const BLOCK6 = new net.BlockList();
+const GLOBAL_IPV6 = new net.BlockList();
+
+// Global Unicast Address space. IPv6 destinations outside 2000::/3 are
+// not accepted, even if they are absent from the special-purpose blocklist.
+GLOBAL_IPV6.addSubnet('2000::', 3, 'ipv6');
 
 for (const [address, prefix] of BLOCKED_IPV4_RANGES) {
   BLOCK4.addSubnet(address, prefix, 'ipv4');
@@ -175,6 +180,13 @@ function isPrivateIp(ip) {
         return isPrivateIp(mappedIPv4);
       }
 
+      // Accept only IPv6 Global Unicast addresses. Then apply the
+      // special-purpose exclusions below. This is intentionally
+      // fail-closed for transition, local, documentation and reserved space.
+      if (!GLOBAL_IPV6.check(ip, 'ipv6')) {
+        return true;
+      }
+
       return BLOCK6.check(ip, 'ipv6');
     }
   } catch {
@@ -232,8 +244,7 @@ async function resolvePublic(host) {
   let addresses;
 
   try {
-    // NOSONAR: Hostname destination is strictly validated by HOST_RE and BLOCKED_DOMAINS_RE
-    addresses = await dns.lookup(host, {
+    addresses = await dns.lookup(host, { // NOSONAR: hostname syntax is validated above; every resolved IP is checked below before use.
       all: true,
       verbatim: true,
     });

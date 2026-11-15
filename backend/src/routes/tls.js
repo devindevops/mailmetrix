@@ -94,6 +94,8 @@ router.post('/', async (req, res) => {
     // ----------------------------------------------
     // TLS inspection
     // ----------------------------------------------
+    // The service performs DNS resolution, validates every returned IP,
+    // and connects only to a validated IP (never to this hostname directly).
 
     const result = await service.inspect({
       host: sanitizedHost,

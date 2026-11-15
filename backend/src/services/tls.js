@@ -37,9 +37,12 @@ function openSocket(ip, port) {
     throw err('Invalid or blocked destination IP address', 'BLOCKED');
   }
 
+  if (!ALLOWED_PORTS.has(port)) {
+    throw err('Destination port is not permitted', 'BAD_INPUT');
+  }
+
   return new Promise((resolve, reject) => {
-    // NOSONAR: Destination IP is verified against private and reserved address blocklists via netguard
-    const socket = net.connect({
+    const socket = net.connect({ // NOSONAR: `ip` is validated and pinned by resolvePublic(); the original hostname is not used here.
       host: ip,
       port,
       family: net.isIP(ip),
@@ -174,9 +177,67 @@ async function secureConnect({
   mode,
   tlsOpts = {},
 }) {
+  // Fail closed before opening either a TCP or TLS connection.
+  // `ip` must be the exact address returned by resolvePublic().
+  if (!net.isIP(ip) || isPrivateIp(ip)) {
+    throw err('Invalid or blocked destination IP address', 'BLOCKED');
+  }
+
+  if (
+    typeof host !== 'string' ||
+    (!net.isIP(host) && !isValidHostname(host))
+  ) {
+    throw err('Invalid TLS hostname', 'BLOCKED');
+  }
+
+  if (!ALLOWED_PORTS.has(port)) {
+    throw err('Destination port is not permitted', 'BAD_INPUT');
+  }
+
+  if (!['implicit', 'starttls'].includes(mode)) {
+    throw err('Invalid TLS connection mode', 'BAD_INPUT');
+  }
+
+  // Only allow the TLS options that this service actually needs.
+  // In particular, callers cannot override host, port, socket, family,
+  // servername, or certificate-inspection settings.
+  const allowedVersions = new Set([
+    'TLSv1',
+    'TLSv1.1',
+    'TLSv1.2',
+    'TLSv1.3',
+  ]);
+
+  const safeTlsOptions = {};
+
+  if (tlsOpts.minVersion !== undefined) {
+    if (!allowedVersions.has(tlsOpts.minVersion)) {
+      throw err('Invalid minimum TLS version', 'BAD_INPUT');
+    }
+    safeTlsOptions.minVersion = tlsOpts.minVersion;
+  }
+
+  if (tlsOpts.maxVersion !== undefined) {
+    if (!allowedVersions.has(tlsOpts.maxVersion)) {
+      throw err('Invalid maximum TLS version', 'BAD_INPUT');
+    }
+    safeTlsOptions.maxVersion = tlsOpts.maxVersion;
+  }
+
+  if (tlsOpts.ciphers !== undefined) {
+    if (
+      typeof tlsOpts.ciphers !== 'string' ||
+      tlsOpts.ciphers.length > 1024
+    ) {
+      throw err('Invalid TLS cipher configuration', 'BAD_INPUT');
+    }
+    safeTlsOptions.ciphers = tlsOpts.ciphers;
+  }
+
   let plain;
 
   if (mode === 'starttls') {
+    // openSocket receives only the validated, pinned IP address.
     plain = await openSocket(ip, port);
 
     try {
@@ -219,37 +280,39 @@ async function secureConnect({
   return new Promise((resolve, reject) => {
     let settled = false;
 
-    const options = {
-      ...(plain
-        ? { socket: plain }
-        : {
-            host: ip,
-            port,
-            family: net.isIP(ip),
-          }),
+    // The destination is always the previously validated IP. For STARTTLS,
+    // TLS is layered over the already-connected, validated TCP socket.
+    const destinationOptions = plain
+      ? { socket: plain }
+      : {
+          host: ip,
+          port,
+          family: net.isIP(ip),
+        };
 
-      // SNI is not applicable to IP address literals.
+    const options = {
+      ...safeTlsOptions,
+      ...destinationOptions,
+
+      // SNI uses the original validated DNS name, never the resolved IP.
       servername: net.isIP(host) ? undefined : host,
 
-      ...tlsOpts,
-
-      // Intentionally disabled because this is a diagnostic
-      // scanner that must inspect untrusted certificates.
-      //
-      // Certificate trust is evaluated separately below.
-      //
-      // codeql[js/disabling-certificate-validation]
-      // lgtm[js/disabling-certificate-validation]
+      // This scanner intentionally inspects untrusted certificates.
+      // Certificate identity and trust are reported separately in inspect().
       rejectUnauthorized: false,
     };
 
-    if (!plain && (!net.isIP(ip) || isPrivateIp(ip))) {
-      fail(err('Invalid or blocked destination IP address', 'BLOCKED'));
+    let socket;
+
+    try {
+      // `ip` is validated here and pinned from resolvePublic(); the original
+      // user-controlled hostname is used only for SNI and certificate identity.
+      socket = tls.connect(options); // NOSONAR: validated, pinned IP is the connection destination.
+    } catch (error) {
+      if (plain) plain.destroy();
+      reject(error);
       return;
     }
-
-    // NOSONAR: Destination IP is verified against private and reserved address blocklists via netguard
-    const socket = tls.connect(options);
 
     const cleanup = () => {
       socket.removeListener('secureConnect', onSecure);
@@ -262,7 +325,6 @@ async function secureConnect({
 
       settled = true;
       cleanup();
-
       socket.destroy();
 
       if (plain) {
@@ -277,15 +339,12 @@ async function secureConnect({
 
       settled = true;
       cleanup();
-
       socket.setTimeout(0);
       resolve(socket);
     };
 
     const onTimeout = () => {
-      fail(
-        err('TLS handshake timed out', 'TIMEOUT')
-      );
+      fail(err('TLS handshake timed out', 'TIMEOUT'));
     };
 
     const onError = (error) => {
@@ -293,7 +352,6 @@ async function secureConnect({
     };
 
     socket.setTimeout(TIMEOUT);
-
     socket.once('secureConnect', onSecure);
     socket.once('timeout', onTimeout);
     socket.once('error', onError);
