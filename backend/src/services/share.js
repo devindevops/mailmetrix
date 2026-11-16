@@ -210,10 +210,10 @@ function toCsv(data) {
 
 function toHtml(rec, id) {
   const rows = flatten(rec.data).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>MailProbe ${esc(rec.type)} report</title>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>MailMetrix ${esc(rec.type)} report</title>
 <style>body{font:14px system-ui,sans-serif;margin:2rem auto;max-width:900px;padding:0 1rem}table{border-collapse:collapse;width:100%}
 th,td{border:1px solid #ccc;padding:4px 8px;text-align:left;vertical-align:top;word-break:break-word}th{width:35%;background:#f4f4f4}</style></head>
-<body><h1>MailProbe ${esc(rec.type)} report</h1><p>ID ${esc(id)} &middot; created ${esc(new Date(rec.createdAt).toISOString())}</p><table>${rows}</table></body></html>`;
+<body><h1>MailMetrix ${esc(rec.type)} report</h1><p>ID ${esc(id)} &middot; created ${esc(new Date(rec.createdAt).toISOString())}</p><table>${rows}</table></body></html>`;
 }
 
 module.exports = { create, get, toCsv, toHtml };

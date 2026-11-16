@@ -250,7 +250,7 @@ async function secureConnect({
         );
       }
 
-      plain.write('EHLO mailprobe.local\r\n');
+      plain.write('EHLO mailmetrix.local\r\n');
 
       const ehlo = await readReply(plain);
 

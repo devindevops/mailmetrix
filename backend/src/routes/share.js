@@ -32,7 +32,7 @@ router.get('/:id/export', async (req, res) => {
     const rec = await service.get(id);
     if (!rec) return res.status(404).json({ error: 'Share not found or expired' });
     const fmt = String(req.query.format || 'json');
-    const name = `mailprobe-${rec.type}-${id}`;
+    const name = `mailmetrix-${rec.type}-${id}`;
     if (fmt === 'csv') {
       res.type('text/csv').set('Content-Disposition', `attachment; filename="${name}.csv"`);
       return res.send(service.toCsv(rec.data));
