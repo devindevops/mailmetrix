@@ -1067,8 +1067,8 @@ fieldset.form-group { margin: 0; padding: 0; border: 0; min-width: 0; }
   background: linear-gradient(120deg, var(--upd-a), var(--upd-b) 45%, var(--upd-c));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-          mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   opacity: 0.75;
 }
 .update-banner::after {            /* one slow light sweep on arrival */
