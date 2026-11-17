@@ -12,8 +12,9 @@ const blacklistRoutes = require("./routes/blacklist");
 const scoreRoutes = require("./routes/score");
 const tlsRoutes = require("./routes/tls");
 const shareRoutes = require("./routes/share");
+const versionRoutes = require("./routes/version");
 
-const app = express();  
+const app = express();
 app.disable("x-powered-by"); // don't advertise "X-Powered-By: Express" on every response
 const PORT = Number(process.env.PORT || 4000);
 
@@ -105,6 +106,13 @@ const shareLimiter = createLimiter(
   "Share limit reached. Please try again later."
 );
 
+// Update check: answered from an in-memory cache (GitHub is contacted at most every
+// few hours), so this is cheap, but it is public and runs on every page load.
+const versionLimiter = createLimiter(
+  positiveInt(process.env.RATE_LIMIT_VERSION, 60),
+  "Too many requests, please try again later."
+);
+
 // HTTP request logging (registered first so 429 responses are logged too).
 app.use((req, res, next) => {
   const startTime = Date.now();
@@ -130,6 +138,8 @@ app.use("/blacklist", blacklistLimiter);
 app.use("/score", scoreLimiter);
 app.use("/tls", tlsLimiter);
 app.use("/share", shareLimiter);
+app.use("/version", versionLimiter);
+app.use("/api/version", versionLimiter);
 
 // Share allows larger payloads (up to 300kb) and parses its own body, so it
 // must be mounted BEFORE the global 100kb parser below.
@@ -160,14 +170,22 @@ app.get("/", (_req, res) => {
 // ("backend" is kept only so a UI that checks it for a status badge keeps
 // working; it carries no sensitive information.)
 function healthHandler(_req, res) {
+  res.set("Cache-Control", "no-store");
+
   res.status(200).json({
     status: "healthy",
-    backend: "connected"
+    backend: "connected",
+    uptimeSeconds: Math.round(process.uptime()),
+    cpuPercent: sampleCpuPercent(),
+    memory: {
+      rssMb: toMb(process.memoryUsage().rss),
+      heapUsedMb: toMb(process.memoryUsage().heapUsed),
+      heapTotalMb: toMb(process.memoryUsage().heapTotal)
+    }
   });
 }
 
 app.get("/health", healthHandler);
-// Also map /api/health to the same handler if your frontend polls /api/health
 app.get("/api/health", healthHandler);
 
 // INTERNAL telemetry: for monitoring from inside the Docker network only.
@@ -240,6 +258,22 @@ app.get("/internal/health", (req, res, next) => {
   });
 });
 
+app.get("/api/telemetry", (req, res) => {
+  if (!isInternalRequest(req)) {
+    return res.status(404).end();
+  }
+
+  res.set("Cache-Control", "no-store");
+
+  res.json({
+    status: "healthy",
+    cpuPercent: sampleCpuPercent(),
+    memory: {
+      rssMb: toMb(process.memoryUsage().rss)
+    }
+  });
+});
+
 // Application routes.
 app.use("/smtp", smtpRoutes);
 app.use("/dns", dnsRoutes);
@@ -248,6 +282,11 @@ app.use("/generator", generatorRoutes);
 app.use("/blacklist", blacklistRoutes);
 app.use("/score", scoreRoutes);
 app.use("/tls", tlsRoutes);
+
+// Update check. Mounted at both paths because the frontend calls /api/version/check and
+// nginx may or may not strip the /api prefix (same reason /api/health exists above).
+app.use("/version", versionRoutes);
+app.use("/api/version", versionRoutes);
 
 // Handle unmatched routes.
 app.use((req, res) => {

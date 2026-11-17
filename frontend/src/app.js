@@ -7,9 +7,12 @@ import { initBlacklist, renderBlacklist } from "./features/blacklist.js";
 import { initScore, renderScore } from "./features/score.js";
 import { initTls, renderTls } from "./features/tls.js";
 import { loadSharedFromUrl } from "./features/share.js";
+import { initUpdateCheck } from "./features/update.js";
+import { initMobileNav } from "./features/mobile-nav.js";
 import { renderSmtp, renderDns, renderGenerator, renderHeaders } from "./features/renderers.js";
 
 initTabs();
+initMobileNav();
 initSMTP();
 initDNS();
 initHeaders();
@@ -123,8 +126,17 @@ function setBackendState(online, duration, data) {
     }
     // Only show figures the backend actually reported. /api/health is intentionally minimal
     // (no process internals), so these stay "--" rather than showing invented numbers.
-    if (cpuEl) cpuEl.textContent = (data && data.cpu) || '--';
-    if (memEl) memEl.textContent = (data && data.memory) || '--';
+    if (cpuEl) {
+      cpuEl.textContent = Number.isFinite(data?.cpuPercent)
+        ? `${data.cpuPercent}%`
+        : '--';
+    }
+
+    if (memEl) {
+      memEl.textContent = Number.isFinite(data?.memory?.rssMb)
+        ? `${data.memory.rssMb} MB`
+        : '--';
+    }
     if (statusVal) {
       statusVal.textContent = 'Healthy';
       statusVal.classList.remove('is-down');
@@ -154,18 +166,30 @@ function setBackendState(online, duration, data) {
 let telemetryInFlight = false;
 
 async function updateBackendTelemetry() {
-  // Skip background tabs and overlapping polls (a hung backend must not pile up requests).
   if (document.hidden || telemetryInFlight) return;
+
   telemetryInFlight = true;
   const startTime = performance.now();
+
   try {
-    const response = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+    const response = await fetch('/api/health', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(4000)
+    });
+
     const duration = Math.round(performance.now() - startTime);
 
     if (!response.ok) throw new Error('Unhealthy response');
+
     const data = await response.json();
+
+    if (data.status !== 'healthy') {
+      throw new Error('Backend unhealthy');
+    }
+
     setBackendState(true, duration, data);
-  } catch (err) {
+
+  } catch {
     setBackendState(false);
   } finally {
     telemetryInFlight = false;
@@ -173,16 +197,17 @@ async function updateBackendTelemetry() {
 }
 
 updateBackendTelemetry();
-setInterval(updateBackendTelemetry, 5000);
+setInterval(updateBackendTelemetry, 30000);
 // Refresh immediately when the user comes back to the tab instead of showing stale status.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) updateBackendTelemetry();
 });
 
 /* ---------------- App version (footer) ---------------- */
+// Resolves to the installed version string (or null), so the update check can reuse it.
 async function loadAppVersion() {
   const el = document.getElementById('appVersion');
-  if (!el) return;
+  if (!el) return null;
   try {
     // no-store so a new release shows immediately, even behind nginx/browser caching
     const res = await fetch('version.json', { cache: 'no-store' });
@@ -196,8 +221,16 @@ async function loadAppVersion() {
       if (!isNaN(d)) el.title = `Version ${version} · released ${d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
     }
     el.hidden = false;
+    return version;
   } catch (err) {
     el.hidden = true; // fail quietly — the footer simply omits the badge
+    return null;
   }
 }
-loadAppVersion();
+
+/* ---------------- Update notification ----------------
+   Compares the installed version (version.json) with the latest GitHub release,
+   which the backend looks up and caches. See features/update.js. */
+loadAppVersion().then((installed) => {
+  if (installed) initUpdateCheck(installed);
+});
