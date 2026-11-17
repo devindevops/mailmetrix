@@ -2,7 +2,7 @@
 
 **Self-hosted email infrastructure diagnostics.**
 
-MailMetrix is an email diagnostics toolkit for developers, system administrators, and DevOps engineers. It brings SMTP testing, DNS email authentication checks, email header analysis, and DKIM/DMARC generation together in one web application.
+MailMetrix is an email diagnostics toolkit for developers, system administrators, and DevOps engineers. It brings SMTP testing, DNS email authentication checks, email header analysis, and DKIM/DMARC generation together in one web application. It also includes blacklist checking, a domain deliverability score, a TLS certificate inspector, and shareable, exportable results.
 
 Run MailMetrix in your own environment and maintain control over how you deploy and access your email diagnostic tools.
 
@@ -88,6 +88,96 @@ RSA key generation is CPU-intensive, so it runs off the main thread with a concu
 
 **Note:** A generated record is not proof that your email authentication configuration is correct. Validate the published configuration after deployment.
 
+### 5. Blacklist Checker
+
+Check whether a sending IP address or domain is listed on common DNS blacklists (DNSBLs).
+
+- **IPv4 addresses** are checked against 9 lists: Spamhaus ZEN, Barracuda, SpamCop, Passive Spam Block List, UCEPROTECT Level 1, DroneBL, Mailspike, Manitu (NiX Spam), and s5h.net.
+- **Domains** are checked against 3 domain lists (Spamhaus DBL, SURBL, URIBL). The domain's first three A-record IPs are also checked against the IP lists.
+- Each list reports `listed`, `clean`, or `unknown`, with the return code and the list's reason text where available.
+- IPv6 addresses are not supported for IP blacklists.
+
+```http
+POST /api/blacklist
+Content-Type: application/json
+
+{ "target": "203.0.113.10" }
+```
+
+**Note:** Several blacklists (Spamhaus in particular) refuse queries that arrive through large public resolvers such as `8.8.8.8` or `1.1.1.1`. These answers are shown as `unknown`, not `clean`. If you see many `unknown` results, point the backend container at your host's or provider's resolver using the commented `dns:` option in `docker-compose.yml`.
+
+### 6. Deliverability Score
+
+Grade a domain's overall email health from **A to F** (0-100) by combining several checks into one report, with fixes ordered by impact.
+
+| Check | Weight | What is evaluated |
+|---|---|---|
+| MX records | 10 | Presence and redundancy of MX records |
+| SPF | 20 | Single record, enforcement mechanism (`-all`, `~all`, `+all`), and the 10 DNS-lookup limit |
+| DKIM | 15 | Public key found on a supplied selector or on common selectors |
+| DMARC | 20 | Policy strength (`none`, `quarantine`, `reject`) and reporting address |
+| Reverse DNS (FCrDNS) | 10 | Forward-confirmed PTR records for the MX IP addresses |
+| Blacklists | 10 | MX IP addresses on the IP blacklists listed above |
+| MTA-STS | 5 | Presence of the `_mta-sts` TXT record |
+| Mail server TLS | 10 | Certificate and protocol of the primary MX on port 25 |
+
+Checks that cannot be evaluated (for example, the TLS check when outbound port 25 is blocked, or blacklist servers refusing the resolver) are skipped and excluded from the total rather than counted as failures.
+
+```http
+POST /api/score
+Content-Type: application/json
+
+{ "domain": "example.com", "selector": "default" }
+```
+
+`selector` is optional. When omitted, a list of common DKIM selectors is probed; a domain using a custom selector may therefore show a partial DKIM result until its selector is supplied.
+
+**Note:** A score is a diagnostic aid, not a guarantee of inbox placement. Receiving providers apply their own reputation and content rules.
+
+### 7. TLS Certificate Inspector
+
+Negotiate TLS with a mail (or other TLS) server and review its certificate and connection details.
+
+- Supported ports: `25`, `587`, `2525` (SMTP with STARTTLS), and `465`, `993`, `995`, `443` (implicit TLS).
+- Reports the negotiated protocol and cipher, whether the certificate chain is trusted, the certificate subject, issuer, validity dates, days remaining, key type and size, subject alternative names, SHA-256 fingerprint, and the certificate chain.
+- Produces severity-rated findings for expired or soon-to-expire certificates, hostname mismatch, untrusted or self-signed certificates, deprecated TLS versions, weak ciphers, and weak RSA keys.
+- Optionally probes which TLS versions (1.0-1.3) the server accepts. This opens several extra connections and is slower.
+- Untrusted certificates on port 25 are reported as warnings rather than failures, because opportunistic TLS between mail servers commonly tolerates them. Strict senders and MTA-STS do not.
+
+```http
+POST /api/tls
+Content-Type: application/json
+
+{ "host": "mail.example.com", "port": 25, "versions": false }
+```
+
+Because this tool makes outbound connections to a host you specify, it is guarded by the same address restrictions as the SMTP tester (see [Built-in protections](#built-in-protections)).
+
+### 8. Shareable Links & Export
+
+The results of every tool (SMTP Tester, DNS Email Checker, Email Header Analyzer, DKIM & DMARC Generator, Blacklist Checker, Deliverability Score, and TLS Inspector) include a bar with:
+
+- **Share link:** stores the result on the server and returns a link of the form `/?share=<id>`. Links expire automatically (7 days by default; see `SHARE_TTL_DAYS`).
+- **JSON** and **CSV:** download the result from the browser. CSV values are protected against spreadsheet formula injection.
+- **PDF:** prints only the result using the browser's print dialog, where you can choose "Save as PDF".
+
+```http
+POST /api/share
+GET  /api/share/<id>
+GET  /api/share/<id>/export?format=json|csv|html
+```
+
+Notes:
+
+- SMTP Tester, DNS Checker, Header Analyzer, DKIM & DMARC Generator, Blacklist, Deliverability Score, and TLS results can be shared.
+- A Header Analyzer share contains only the parsed analysis (sender and return-path addresses, message ID, authentication results, delivery path, and findings). The raw header text you pasted is never sent to the share endpoint. Header analyses can still contain third-party email addresses and mail server IP addresses, so by default the subject, display names, and the username part of every email address are hidden in shared and exported results. You can turn this off with the checkbox shown under the result. The PDF option prints the result exactly as displayed on screen.
+- An SMTP share contains only the diagnostic output: status, message ID, accepted and rejected recipients, error stage and code, plus the SMTP host, port, and security mode. It never contains the username, password, From address, or message body.
+- A DNS share contains the MX, SPF, and DMARC results, plus the DKIM result if a selector was checked.
+- DKIM private keys are never included in shared results, JSON/CSV downloads, or printed output, even though the generator displays them on screen. The server also removes private-key blocks and any field named like a password, secret, token, or private key before anything is stored.
+- Anyone who has a share link can view the result until it expires. Link IDs are random and unguessable, but links are not otherwise authenticated.
+- If you protect your deployment with authentication, people opening a share link need access to the deployment too.
+- Shared results are written to the `mailmetrix-data` Docker volume so they survive container restarts and rebuilds. Each result is limited to 256 KB, and storage is capped at 5,000 results.
+
 ## Architecture
 
 MailMetrix separates the backend API from the frontend application.
@@ -104,16 +194,26 @@ backend/
 ├── package-lock.json
 └── src
     ├── routes
+    │   ├── _util.js
+    │   ├── blacklist.js
     │   ├── dns.js
     │   ├── generator.js
     │   ├── headers.js
-    │   └── smtp.js
+    │   ├── score.js
+    │   ├── share.js
+    │   ├── smtp.js
+    │   └── tls.js
     ├── server.js
     └── services
+        ├── blacklist.js
         ├── dns.js
         ├── generator.js
         ├── headers.js
-        └── smtp.js
+        ├── netguard.js
+        ├── score.js
+        ├── share.js
+        ├── smtp.js
+        └── tls.js
 ```
 
 ### Frontend
@@ -125,12 +225,18 @@ frontend/
 └── src
     ├── app.js
     ├── features
+    │   ├── blacklist.js
     │   ├── dns.js
     │   ├── flow.js
     │   ├── generator.js
     │   ├── headers.js
+    │   ├── renderers.js
+    │   ├── score.js
+    │   ├── share.js
     │   ├── smtp.js
     │   ├── tabs.js
+    │   ├── tls.js
+    │   ├── ui.js
     │   └── utils.js
     ├── icons
     │   ├── android-chrome-192x192.png
@@ -151,6 +257,11 @@ frontend/
 Backend routes and services separate API handling from feature logic. Frontend feature modules organize the corresponding user-interface behavior.
 
 The frontend intentionally uses a single-page HTML shell, avoiding unnecessary template and loading complexity.
+
+Shared building blocks:
+
+- `backend/src/services/netguard.js` is the common outbound-connection guard (public-address validation and hostname checks) used by the blacklist, score, and TLS services.
+- `frontend/src/features/flow.js` drives the Workflow card for every tool, and `frontend/src/features/share.js` wires the Blacklist, Score, and TLS tools (request, rendering, and the share/export bar) and provides the same share/export bar to the SMTP, DNS, and Generator tabs. `renderers.js` renders shared SMTP, DNS, and Generator results when a share link is opened. `ui.js` provides DOM helpers that build results with text nodes rather than `innerHTML`.
 
 ## Version Management
 
@@ -315,6 +426,8 @@ Stop the application:
 docker compose down
 ```
 
+Shared results are kept in the `mailmetrix-data` volume. `docker compose down` keeps the volume; `docker compose down -v` deletes it, along with all stored share links.
+
 ### Development with Docker Compose Watch
 
 If your Docker Compose configuration defines file-watch actions, you can use:
@@ -339,6 +452,12 @@ The following endpoints are currently documented by the project.
 | `GET` | `/api/dns/dkim?domain=example.com&selector=google` | Check a DKIM selector |
 | `POST` | `/api/headers/analyze` | Analyze submitted email headers |
 | `POST` | `/api/generator` | Generate SPF, DKIM, and DMARC records |
+| `POST` | `/api/blacklist` | Check an IPv4 address or domain against DNS blacklists |
+| `POST` | `/api/score` | Calculate a domain's deliverability score |
+| `POST` | `/api/tls` | Inspect a server's TLS certificate and connection |
+| `POST` | `/api/share` | Store a shareable result (SMTP, DNS, Header, Generator, Blacklist, Score, or TLS) and return a share ID |
+| `GET` | `/api/share/<id>` | Retrieve a shared result |
+| `GET` | `/api/share/<id>/export?format=json\|csv\|html` | Download a shared result |
 
 Request bodies, response schemas, and error formats depend on the current API implementation.
 
@@ -379,6 +498,8 @@ MailMetrix is designed to support self-hosted email diagnostics. Deploy it with 
 | **HTTP hardening** | Nginx sends `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` headers, hides its version, and strips the backend's `X-Powered-By` header. |
 | **Information exposure** | The public health probe returns no process internals. Detailed telemetry is limited to the internal network. |
 | **Container privileges** | Both containers run as non-root users (`node` for the backend, uid `101` for Nginx). All Linux capabilities are dropped and `no-new-privileges` is set. Base images are pinned to supported versions rather than floating tags. |
+| **TLS inspector and score connections** | The TLS inspector (and the TLS check inside the deliverability score) validates the hostname, resolves it once, rejects loopback, private, link-local, and reserved addresses, and connects only to the validated IP. Ports are limited to a fixed allow-list (`25`, `465`, `587`, `2525`, `443`, `993`, `995`). |
+| **Shared results** | Only SMTP, DNS, Header, Generator, Blacklist, Score, and TLS results can be stored, and header shares never include the raw header text. Private keys and secret-named fields are removed before storage. Share IDs are random, entries expire automatically, payload size and total count are capped, shared output is rendered with escaped text, and the HTML export is served with a restrictive Content-Security-Policy. |
 
 These controls reduce risk but do **not** replace authentication. Please read the limitations below.
 
@@ -451,6 +572,8 @@ Then:
 - The Content Security Policy is strict (`script-src 'self'`). If you add inline scripts, third-party scripts, or web fonts to the frontend, update the policy in `frontend/nginx.conf`.
 - Internationalized (non-ASCII) email domains must be supplied in punycode form.
 - Network-level controls still matter. If you run on a cloud host, also block container access to the metadata address (`169.254.169.254`) or require IMDSv2 with a hop limit of 1.
+- Shared result links are protected only by an unguessable ID. Anyone with a link can view the result until it expires, and anyone who can reach the deployment can create links. Share results only if their contents (hostnames, IP addresses, certificate details, and domain configuration) are fine to disclose to the recipients. For SMTP results this includes the SMTP host and the accepted and rejected recipient addresses; for header analyses it includes mail server hostnames and IP addresses from the delivery path.
+- Shared results are stored as files in the `mailmetrix-data` volume and are removed after `SHARE_TTL_DAYS`. Back up or delete that volume according to your own retention needs.
 
 ### Understand external connections
 
@@ -462,6 +585,8 @@ For example:
 - DNS checks query DNS infrastructure.
 - Header analysis processes the supplied header data.
 - DKIM/DMARC generation operates according to the implementation of the generator.
+- Blacklist checks send DNS queries containing the IP address or domain being checked to the operators of the blacklists, through the resolver available to the backend container.
+- The TLS inspector connects to the host and port you specify, and the deliverability score connects to the domain's primary MX on port 25 and queries DNS for its records and blacklists.
 
 Review the source code to understand which services receive requests or data during each operation.
 
@@ -502,6 +627,12 @@ All of the following are optional. Add them to `.env` (or the backend `environme
 | `RATE_LIMIT_GENERATOR` | `30` | Max generator requests per client per window. |
 | `RATE_LIMIT_DNS` | `60` | Max DNS requests per client per window. |
 | `RATE_LIMIT_HEADERS` | `100` | Max header-analysis requests per client per window. |
+| `RATE_LIMIT_BLACKLIST` | `30` | Max blacklist-check requests per client per window. |
+| `RATE_LIMIT_SCORE` | `15` | Max deliverability-score requests per client per window. |
+| `RATE_LIMIT_TLS` | `20` | Max TLS-inspection requests per client per window. |
+| `RATE_LIMIT_SHARE` | `60` | Max share and share-export requests per client per window. |
+| `SHARE_DIR` | `/app/data/shares` in `docker-compose.yml` | Directory where shared results are stored. Keep it on the `mailmetrix-data` volume so links survive restarts. |
+| `SHARE_TTL_DAYS` | `7` | Days before a shared result link expires and is deleted. |
 | `SMTP_ALLOWED_PORTS` | `25,465,587,2525` | SMTP ports the tester may connect to. |
 | `SMTP_ALLOWED_HOSTS` | *(empty)* | Comma-separated hostnames of trusted internal relays that bypass the private-address block. Only list names you control. |
 | `ALLOWED_RECIPIENT_DOMAINS` | *(empty)* | Restrict test-email recipients to these domains, for example `example.com,*.corp.example.com`. `*.` matches subdomains. Empty means no domain restriction. |
@@ -535,13 +666,14 @@ These checks reduce risk but do not guarantee that the software is free of vulne
 
 ## Privacy Policy
 
-*Last updated: 4 November 2026*
+*Last updated: 11 November 2026*
 
 ### In short
 
 - MailMetrix is **self-hosted software**. The maintainers do not operate a hosted service and **do not receive any data** from your instance.
 - MailMetrix has **no analytics, advertising, tracking, or telemetry**, and does not send data to the maintainers.
 - The backend does not store SMTP credentials, email headers, or generated keys. They are processed for the request and discarded.
+- The only results the backend stores are SMTP, DNS, Header Analysis, Generator, Blacklist, Deliverability Score, and TLS results that a user explicitly chooses to share. Passwords, DKIM private keys, and raw header text are never stored. Header analyses hide the subject, display names, and email usernames by default. Shared results are kept on your instance's disk until they expire.
 - Data leaves your instance only to destinations **you** specify, such as the SMTP server you test and DNS resolvers.
 
 ### Scope and responsibility
@@ -554,21 +686,24 @@ This policy applies to the MailMetrix software and to the project's GitHub Pages
 |---|---|---|
 | SMTP host, port, username, password, sender, recipient, subject, and message | To authenticate to and send a test email through the SMTP server you specify. | Used in memory for the request and not stored by MailMetrix. The password is not included in API responses. The data is sent to the SMTP server you specify, which handles it under its own policies. |
 | Domain names and DKIM selectors | To perform DNS lookups. | Not stored. They appear in request logs because they are part of the request URL. |
-| Email headers | To analyze message routing and authentication results. | Processed in memory and not stored. |
+| Email headers | To analyze message routing and authentication results. | Processed in memory and not stored. Only the parsed analysis (never the raw header text) is stored, and only if the user selects "Share link". |
 | Generated DKIM private keys | To give you key material to publish and keep. | Not stored on the server. The key is delivered to your browser, so protect it and transmit it only over HTTPS. |
+| IP addresses, domains, hostnames, and ports submitted to the Blacklist, Score, and TLS tools | To perform blacklist lookups, score checks, and TLS handshakes. | Sent in the request body and processed in memory; not stored unless the user shares the result. The queried IP or domain is sent to blacklist operators via DNS, and the TLS and score tools connect to the host specified. |
+| Shared results (SMTP, DNS, Header Analysis, Generator, Blacklist, Score, and TLS results) | To let a user send a result to someone else through a link. Shared SMTP results contain diagnostic output and the SMTP host and port, not credentials or message content; shared generator results exclude private keys; shared header analyses exclude the raw headers and, by default, hide the subject, display names, and email usernames. | Stored as a file on the instance's `mailmetrix-data` volume only when the user selects "Share link", and deleted automatically after `SHARE_TTL_DAYS` (7 days by default). Anyone with the link can view it until then. |
 | Client IP addresses | To apply rate limits. | Held temporarily in memory as counters, which expire after the rate-limit window and reset on restart. They also appear in Nginx access logs. |
 | Logs | To operate and troubleshoot the instance. | See below. |
 
 ### Logs
 
 - **Backend:** logs a timestamp, request method, URL (including the query string), status code, and duration. It does not intentionally log request bodies, so SMTP credentials sent in a request body are not written to these logs. Error messages may also be logged.
-- **Nginx:** logs client IP addresses, request lines, status codes, and user agents in its standard access-log format.
+- **Nginx:** logs client IP addresses, request lines, status codes, and user agents in its standard access-log format. Opening a share link (`/?share=<id>`) records the share ID in these logs.
 - **Retention:** Docker keeps container logs on the host. The default Compose file rotates them (10 MB per file, up to 3 files per service). Removing the containers, for example with `docker compose down`, deletes their logs. Adjust log settings if you need shorter retention.
 
 ### Third parties and external connections
 
 - MailMetrix does not include third-party analytics, advertising, or tracking services.
 - SMTP tests connect to the mail server you specify, and DNS checks query DNS resolvers available to your environment. Those services receive the data needed for the lookup or message and handle it under their own policies.
+- Blacklist checks and the blacklist portion of the deliverability score send DNS queries containing the IP address or domain being checked to the blacklist operators (for example Spamhaus, Barracuda, or SpamCop) through your resolver. Those operators handle query data under their own policies.
 - Your hosting provider, network, or reverse proxy can observe traffic to your instance. Use HTTPS for remote access.
 
 ### Cookies and browser storage
@@ -585,6 +720,7 @@ The MailMetrix GitHub Pages site is a static page. It does not use analytics, co
 - Protect your instance with authentication and HTTPS.
 - Be careful before pasting real email headers, which can contain addresses, IP addresses, and message identifiers of third parties.
 - Configure log retention to suit your needs.
+- Share results only when their contents are fine for the recipients to see, and lower `SHARE_TTL_DAYS` if you want links to expire sooner.
 - Do not post credentials, private keys, or personal data in public issues.
 
 ### Changes to this policy

@@ -50,31 +50,49 @@
       <nav class="tool-tabs" aria-label="MailMetrix tools">
         <button class="tab active" type="button" data-tool="smtp">
           <span class="tab-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
           </span>
           <span class="tab-text"><strong>SMTP Tester</strong><small>Test delivery</small></span>
         </button>
         <button class="tab" type="button" data-tool="dns">
           <span class="tab-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z"/></svg>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z"/></svg>
           </span>
           <span class="tab-text"><strong>DNS Checker</strong><small>Inspect records</small></span>
         </button>
         <button class="tab" type="button" data-tool="headers">
           <span class="tab-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
           </span>
           <span class="tab-text"><strong>Header Analyzer</strong><small>Trace messages</small></span>
         </button>
         <button class="tab" type="button" data-tool="generator">
           <span class="tab-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
           </span>
           <span class="tab-text"><strong>SPF, DKIM &amp; DMARC</strong><small>Create DNS records</small></span>
         </button>
+        <button class="tab" type="button" data-tool="blacklist">
+          <span class="tab-icon">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+          </span>
+          <span class="tab-text"><strong>Blacklist Check</strong><small>Reputation lookup</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="score">
+          <span class="tab-icon">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          </span>
+          <span class="tab-text"><strong>Deliverability Score</strong><small>Grade a domain</small></span>
+        </button>
+        <button class="tab" type="button" data-tool="tls">
+          <span class="tab-icon">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <span class="tab-text"><strong>TLS Inspector</strong><small>Certificates</small></span>
+        </button>
       </nav>
 
-      <!-- Backend telemetry -->
+      <!-- Backend telemetry (polled every 5s, so deliberately NOT a live region) -->
       <div class="status-card">
         <div class="status-label">
           <span class="status-dot" id="backendDot"></span>
@@ -115,8 +133,8 @@
           <p class="hero-description">SMTP, DNS, DKIM, DMARC and header diagnostics for developers and sysadmins.</p>
         </div>
         <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">
-          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg aria-hidden="true" class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+          <svg aria-hidden="true" class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         </button>
       </header>
 
@@ -161,7 +179,16 @@
           </div>
         </section>
 
-        <main id="MailMetrixTools">
+        <main id="MailMetrixTools" tabindex="-1">
+
+          <!-- ============ SHARED RESULT (?share=ID) ============ -->
+          <section id="sharedTool" class="card hidden">
+            <div class="card-heading">
+              <h2>Shared result</h2>
+              <span id="sharedMeta" class="muted-chip">Loading…</span>
+            </div>
+            <div id="sharedResult" class="result waiting" aria-live="polite">Loading shared result…</div>
+          </section>
 
           <!-- ============ SMTP ============ -->
           <section id="smtpTool" class="tool-panel">
@@ -179,7 +206,7 @@
                 <section class="card">
                   <div class="card-heading">
                     <h2>Server</h2>
-                    <div class="preset-row" id="smtpPresets" aria-label="Quick presets">
+                    <div class="preset-row" id="smtpPresets" role="group" aria-label="Quick presets">
                       <button type="button" class="chip-button" data-host="smtp.gmail.com" data-port="587" data-security="starttls">Gmail</button>
                       <button type="button" class="chip-button" data-host="smtp.office365.com" data-port="587" data-security="starttls">Outlook</button>
                       <button type="button" class="chip-button" data-host="smtp.sendgrid.net" data-port="587" data-security="starttls">SendGrid</button>
@@ -215,7 +242,7 @@
                       <label for="smtpPassword">Password</label>
                       <div class="password-wrapper">
                         <input id="smtpPassword" type="password" placeholder="Enter password" autocomplete="new-password" />
-                        <button type="button" id="togglePassword" class="password-toggle">Show</button>
+                        <button type="button" id="togglePassword" class="password-toggle" aria-controls="smtpPassword" aria-label="Show password">Show</button>
                       </div>
                     </div>
 
@@ -253,40 +280,20 @@
 
                 <button id="testButton" class="test-button" type="button">
                   <span>Test connection &amp; send email</span>
-                  <span class="button-arrow">→</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
                 </button>
               </div>
 
               <div class="tool-output">
-                <section class="card stage-card">
-                  <div class="card-heading">
-                    <h2>Execution pipeline</h2>
-                    <span class="muted-chip">3 stages</span>
-                  </div>
-                  <div class="stages">
-                    <div class="stage" id="stageBackend">
-                      <div class="stage-icon">1</div>
-                      <div><strong>Frontend → Backend</strong><p>Waiting to initiate transaction...</p></div>
-                    </div>
-                    <div class="stage" id="stageSMTP">
-                      <div class="stage-icon">2</div>
-                      <div><strong>SMTP connection &amp; authentication</strong><p>Waiting for backend proxy...</p></div>
-                    </div>
-                    <div class="stage" id="stageEmail">
-                      <div class="stage-icon">3</div>
-                      <div><strong>Email dispatch</strong><p>Waiting for socket handshake...</p></div>
-                    </div>
-                  </div>
-                </section>
-
                 <section class="card result-card">
                   <div class="card-heading">
                     <h2>Diagnostic output</h2>
                     <span class="muted-chip">Log</span>
                   </div>
-                  <div id="result" class="result waiting">
+                  <div id="result" class="result waiting" aria-live="polite">
                     Enter your SMTP credentials and click <strong>Test connection &amp; send email</strong> to start.
                   </div>
+                  <div id="smtpActions" class="action-bar"></div>
                 </section>
               </div>
             </div>
@@ -311,9 +318,8 @@
                   <input id="domain" type="text" placeholder="example.com" autocomplete="off" />
                 </div>
                 <div class="form-group action-field">
-                  <label>&nbsp;</label>
                   <button id="dnsButton" class="test-button" type="button">
-                    <span>Inspect domain DNS</span><span class="button-arrow">→</span>
+                    <span>Inspect domain DNS</span><span class="button-arrow" aria-hidden="true">→</span>
                   </button>
                 </div>
               </div>
@@ -324,7 +330,8 @@
                 <h2>DNS records</h2>
                 <span class="muted-chip">MX · SPF · DMARC · DKIM</span>
               </div>
-              <div id="dnsResult" class="result waiting">Enter a domain name above to inspect its email records.</div>
+              <div id="dnsResult" class="result waiting" aria-live="polite">Enter a domain name above to inspect its email records.</div>
+              <div id="dnsActions" class="action-bar"></div>
             </section>
           </section>
 
@@ -349,7 +356,7 @@
                   </div>
                 </section>
                 <button id="analyzeHeadersButton" class="test-button" type="button">
-                  <span>Analyze headers</span><span class="button-arrow">→</span>
+                  <span>Analyze headers</span><span class="button-arrow" aria-hidden="true">→</span>
                 </button>
               </div>
 
@@ -359,7 +366,8 @@
                     <h2>Parsed results</h2>
                     <span class="muted-chip">Findings</span>
                   </div>
-                  <div id="headerResult" class="result waiting">Paste raw email headers and run the analysis.</div>
+                  <div id="headerResult" class="result waiting" aria-live="polite">Paste raw email headers and run the analysis.</div>
+                  <div id="headerActions" class="action-bar"></div>
                 </section>
               </div>
             </div>
@@ -406,8 +414,8 @@
                       <label for="spfIp6">IPv6 addresses (ip6:)</label>
                       <input id="spfIp6" type="text" placeholder="2001:db8::1" autocomplete="off" />
                     </div>
-                    <div class="form-group checkbox-group full">
-                      <label>SPF options</label>
+                    <fieldset class="form-group checkbox-group full">
+                      <legend>SPF options</legend>
                       <div class="checkbox-wrapper">
                         <label class="custom-checkbox">
                           <input id="spfAllowA" type="checkbox" />
@@ -418,7 +426,7 @@
                           <span>Include domain MX records (<code>mx</code>)</span>
                         </label>
                       </div>
-                    </div>
+                    </fieldset>
                   </div>
                 </section>
 
@@ -498,7 +506,7 @@
                 </section>
 
                 <button id="generateAuthButton" class="test-button" type="button">
-                  <span>Generate record suite</span><span class="button-arrow">→</span>
+                  <span>Generate record suite</span><span class="button-arrow" aria-hidden="true">→</span>
                 </button>
               </div>
 
@@ -508,10 +516,140 @@
                     <h2>Generated records</h2>
                     <span class="muted-chip">DNS TXT</span>
                   </div>
-                  <div id="generatorResult" class="result waiting">Configure the options and generate your DNS records and DKIM keypair.</div>
+                  <div id="generatorResult" class="result waiting" aria-live="polite">Configure the options and generate your DNS records and DKIM keypair.</div>
+                  <div id="generatorActions" class="action-bar"></div>
                 </section>
               </div>
             </div>
+          </section>
+
+          <!-- ============ BLACKLIST ============ -->
+          <section id="blacklistTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">Reputation Diagnostics</span>
+                <h2>Check IP &amp; domain blacklists</h2>
+                <p>Query major DNS blacklists (Spamhaus, Barracuda, SpamCop and more) to see if a sending IP or domain is listed.</p>
+              </div>
+              <span class="tool-chip">DNSBL</span>
+            </div>
+
+            <section class="card">
+              <div class="card-heading"><h2>Target</h2></div>
+              <div class="form-grid dns-input-grid">
+                <div class="form-group">
+                  <label for="blTarget">IPv4 address or domain</label>
+                  <input id="blTarget" type="text" placeholder="203.0.113.10 or example.com" maxlength="253" autocomplete="off" />
+                </div>
+                <div class="form-group action-field">
+                  <button id="blButton" class="test-button" type="button">
+                    <span>Check blacklists</span><span class="button-arrow" aria-hidden="true">→</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Blacklist results</h2>
+                <span class="muted-chip">12 lists</span>
+              </div>
+              <div id="blResult" class="result waiting" aria-live="polite">Enter an IP address or domain to check its reputation.</div>
+              <div id="blActions" class="action-bar"></div>
+            </section>
+          </section>
+
+          <!-- ============ DELIVERABILITY SCORE ============ -->
+          <section id="scoreTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">Deliverability</span>
+                <h2>Grade your domain's email health</h2>
+                <p>Combines MX, SPF, DKIM, DMARC, reverse DNS, blacklists, MTA-STS and TLS into one score with prioritised fixes.</p>
+              </div>
+              <span class="tool-chip">SCORE</span>
+            </div>
+
+            <section class="card">
+              <div class="card-heading"><h2>Domain</h2></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="scoreDomain">Domain name</label>
+                  <input id="scoreDomain" type="text" placeholder="example.com" maxlength="253" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="scoreSelector">DKIM selector (optional)</label>
+                  <input id="scoreSelector" type="text" placeholder="default" maxlength="63" autocomplete="off" />
+                </div>
+              </div>
+            </section>
+            <button id="scoreButton" class="test-button" type="button">
+              <span>Score domain</span><span class="button-arrow" aria-hidden="true">→</span>
+            </button>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>Deliverability report</h2>
+                <span class="muted-chip">A – F</span>
+              </div>
+              <div id="scoreResult" class="result waiting" aria-live="polite">Enter a domain to generate its deliverability grade.</div>
+              <div id="scoreActions" class="action-bar"></div>
+            </section>
+          </section>
+
+          <!-- ============ TLS INSPECTOR ============ -->
+          <section id="tlsTool" class="tool-panel hidden">
+            <div class="tool-intro">
+              <div>
+                <span class="section-kicker">TLS Diagnostics</span>
+                <h2>Inspect mail server certificates</h2>
+                <p>Negotiate STARTTLS or implicit TLS and review the certificate chain, expiry, hostname match, protocol and cipher.</p>
+              </div>
+              <span class="tool-chip">TLS</span>
+            </div>
+
+            <section class="card">
+              <div class="card-heading"><h2>Server</h2></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="tlsHost">Hostname</label>
+                  <input id="tlsHost" type="text" placeholder="mail.example.com" maxlength="253" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label for="tlsPort">Port</label>
+                  <select id="tlsPort">
+                    <option value="25">25 · SMTP (STARTTLS)</option>
+                    <option value="587">587 · Submission (STARTTLS)</option>
+                    <option value="465">465 · SMTPS (implicit TLS)</option>
+                    <option value="2525">2525 · SMTP (STARTTLS)</option>
+                    <option value="993">993 · IMAPS</option>
+                    <option value="995">995 · POP3S</option>
+                    <option value="443">443 · HTTPS</option>
+                  </select>
+                </div>
+                <fieldset class="form-group checkbox-group full">
+                  <legend>Options</legend>
+                  <div class="checkbox-wrapper">
+                    <label class="custom-checkbox">
+                      <input id="tlsVersions" type="checkbox" />
+                      <span>Probe supported TLS versions (slower)</span>
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+            </section>
+            <button id="tlsButton" class="test-button" type="button">
+              <span>Inspect certificate</span><span class="button-arrow" aria-hidden="true">→</span>
+            </button>
+
+            <section class="card result-card">
+              <div class="card-heading">
+                <h2>TLS report</h2>
+                <span class="muted-chip">Certificate · Chain</span>
+              </div>
+              <div id="tlsResult" class="result waiting" aria-live="polite">Enter a mail server hostname to inspect its TLS configuration.</div>
+              <div id="tlsActions" class="action-bar"></div>
+            </section>
           </section>
 
         </main>
@@ -521,7 +659,6 @@
             <span class="footer-brand">MailMetrix</span>
             <span class="version-badge" id="appVersion" title="Application version" hidden>v–</span>
           </div>
-          <span class="footer-meta">SMTP · DNS · Security</span>
         </footer>
       </div>
     </div>

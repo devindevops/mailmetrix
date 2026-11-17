@@ -1,0 +1,49 @@
+'use strict';
+const express = require('express');
+const path = require('path');
+const service = require('../services/share');
+const sendError = require('./_util');
+
+const router = express.Router();
+router.use(express.json({ limit: '300kb' }));
+
+const ID_RE = /^[A-Za-z0-9_-]{8,16}$/;
+
+router.post('/', async (req, res) => {
+  try {
+    res.status(201).json(await service.create(req.body?.type, req.body?.data, req.ip));
+  } catch (e) { sendError(res, e); }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const id = path.basename(String(req.params.id || ''));
+    if (!ID_RE.test(id)) return res.status(404).json({ error: 'Share not found or expired' });
+    const rec = await service.get(id);
+    if (!rec) return res.status(404).json({ error: 'Share not found or expired' });
+    res.json({ type: rec.type, data: rec.data, createdAt: rec.createdAt, expiresAt: rec.expiresAt });
+  } catch (e) { sendError(res, e); }
+});
+
+router.get('/:id/export', async (req, res) => {
+  try {
+    const id = path.basename(String(req.params.id || ''));
+    if (!ID_RE.test(id)) return res.status(404).json({ error: 'Share not found or expired' });
+    const rec = await service.get(id);
+    if (!rec) return res.status(404).json({ error: 'Share not found or expired' });
+    const fmt = String(req.query.format || 'json');
+    const name = `mailmetrix-${rec.type}-${id}`;
+    if (fmt === 'csv') {
+      res.type('text/csv').set('Content-Disposition', `attachment; filename="${name}.csv"`);
+      return res.send(service.toCsv(rec.data));
+    }
+    if (fmt === 'html') {
+      res.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
+      return res.type('html').send(service.toHtml(rec, id));
+    }
+    res.type('application/json').set('Content-Disposition', `attachment; filename="${name}.json"`);
+    return res.send(JSON.stringify(rec.data, null, 2));
+  } catch (e) { sendError(res, e); }
+});
+
+module.exports = router;

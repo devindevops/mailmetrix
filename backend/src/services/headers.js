@@ -46,7 +46,9 @@ function parseAuthenticationResults(value) {
 
 function parseAddress(value) {
   if (!value) return null;
-  const match = value.match(/<([^>]+)>/);
+  // [^<>] (not [^>]): a run of "<" can no longer make every start position
+  // scan to the end of the string looking for a ">" (quadratic backtracking).
+  const match = value.match(/<([^<>]+)>/);
   return (match ? match[1] : value).trim() || null;
 }
 
@@ -56,16 +58,20 @@ function parseDomain(address) {
   return normalized.split("@").pop().toLowerCase();
 }
 
+// RFC 5322 date-time, e.g. "Mon, 3 Nov 2025 10:00:00 +0000". Every part is a fixed token with a
+// small upper bound, so each start position costs O(1) and the whole scan is linear. The previous
+// pattern used a lazy [\s\S]*? up to a +dddd offset, which rescanned the rest of the header for
+// every "Mon"/"Tue"/... it found (quadratic), and also matched words like "monitor.example.com".
+const RECEIVED_TIMESTAMP =
+  /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s{0,8}\d{1,2}\s{1,8}[A-Za-z]{3}\s{1,8}\d{2,4}\s{1,8}\d{1,2}:\d{2}(?::\d{2})?\s{0,8}[+-]\d{4}/i;
+
 function analyzeReceivedHeaders(values) {
   return values.map((value, index) => ({
     hop: index + 1,
     from: value.match(/\bfrom\s+([^\s(]+)/i)?.[1] || null,
     by: value.match(/\bby\s+([^\s(]+)/i)?.[1] || null,
     protocol: value.match(/\bwith\s+([^\s;]+)/i)?.[1] || null,
-    timestamp:
-      value.match(
-        /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?[\s\S]*?(?:\+|-)\d{4}/i
-      )?.[0] || null,
+    timestamp: value.match(RECEIVED_TIMESTAMP)?.[0] || null,
     raw: value
   }));
 }

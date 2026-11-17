@@ -3,12 +3,29 @@ import { initSMTP } from "./features/smtp.js";
 import { initDNS } from "./features/dns.js";
 import { initHeaders } from "./features/headers.js";
 import { initGenerator } from "./features/generator.js";
+import { initBlacklist, renderBlacklist } from "./features/blacklist.js";
+import { initScore, renderScore } from "./features/score.js";
+import { initTls, renderTls } from "./features/tls.js";
+import { loadSharedFromUrl } from "./features/share.js";
+import { renderSmtp, renderDns, renderGenerator, renderHeaders } from "./features/renderers.js";
 
 initTabs();
 initSMTP();
 initDNS();
 initHeaders();
 initGenerator();
+initBlacklist();
+initScore();
+initTls();
+loadSharedFromUrl({
+  blacklist: renderBlacklist,
+  score: renderScore,
+  tls: renderTls,
+  smtp: renderSmtp,
+  dns: renderDns,
+  generator: renderGenerator,
+  headers: renderHeaders
+});
 
 /* ---------------- Theme toggle ---------------- */
 (function initTheme() {
@@ -52,6 +69,40 @@ initGenerator();
   });
 })();
 
+/* ---------------- Accessibility: mirror CSS-class state into ARIA ----------------
+   tabs.js and the flow helpers signal state only through CSS classes ("active", "success",
+   "error"), which assistive technology cannot see. Rather than touch every module, watch the
+   classes here and reflect them as ARIA state. This works however those modules toggle them. */
+(function initA11ySync() {
+  const observe = (nodes, onChange) => {
+    const observer = new MutationObserver((records) => records.forEach((r) => onChange(r.target)));
+    nodes.forEach((node) => {
+      onChange(node);
+      observer.observe(node, { attributes: true, attributeFilter: ['class'] });
+    });
+  };
+
+  // Sidebar tabs: the active tool is announced as the current item.
+  observe(document.querySelectorAll('.tool-tabs .tab'), (tab) => {
+    if (tab.classList.contains('active')) tab.setAttribute('aria-current', 'true');
+    else tab.removeAttribute('aria-current');
+  });
+
+  // Workflow steps: colour alone shows progress, so add the state as visually hidden text.
+  const stepText = { active: 'in progress', success: 'completed', error: 'failed' };
+  const stepLabels = new Map();
+  document.querySelectorAll('.flow-step').forEach((step) => {
+    const label = document.createElement('span');
+    label.className = 'sr-only';
+    (step.querySelector('div') || step).appendChild(label);
+    stepLabels.set(step, label);
+  });
+  observe(document.querySelectorAll('.flow-step'), (step) => {
+    const state = Object.keys(stepText).find((s) => step.classList.contains(s));
+    stepLabels.get(step).textContent = state ? ` (${stepText[state]})` : '';
+  });
+})();
+
 /* ---------------- Backend telemetry ---------------- */
 function setBackendState(online, duration, data) {
   const latencyEl = document.getElementById('backendLatency');
@@ -70,8 +121,10 @@ function setBackendState(online, duration, data) {
       streamEl.textContent = '● Connected';
       streamEl.style.color = 'var(--success)';
     }
-    if (cpuEl) cpuEl.textContent = (data && data.cpu) || '0.5 %';
-    if (memEl) memEl.textContent = (data && data.memory) || '35.0 MB';
+    // Only show figures the backend actually reported. /api/health is intentionally minimal
+    // (no process internals), so these stay "--" rather than showing invented numbers.
+    if (cpuEl) cpuEl.textContent = (data && data.cpu) || '--';
+    if (memEl) memEl.textContent = (data && data.memory) || '--';
     if (statusVal) {
       statusVal.textContent = 'Healthy';
       statusVal.classList.remove('is-down');
@@ -98,10 +151,15 @@ function setBackendState(online, duration, data) {
   }
 }
 
+let telemetryInFlight = false;
+
 async function updateBackendTelemetry() {
+  // Skip background tabs and overlapping polls (a hung backend must not pile up requests).
+  if (document.hidden || telemetryInFlight) return;
+  telemetryInFlight = true;
   const startTime = performance.now();
   try {
-    const response = await fetch('/api/health');
+    const response = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(4000) });
     const duration = Math.round(performance.now() - startTime);
 
     if (!response.ok) throw new Error('Unhealthy response');
@@ -109,11 +167,17 @@ async function updateBackendTelemetry() {
     setBackendState(true, duration, data);
   } catch (err) {
     setBackendState(false);
+  } finally {
+    telemetryInFlight = false;
   }
 }
 
 updateBackendTelemetry();
 setInterval(updateBackendTelemetry, 5000);
+// Refresh immediately when the user comes back to the tab instead of showing stale status.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) updateBackendTelemetry();
+});
 
 /* ---------------- App version (footer) ---------------- */
 async function loadAppVersion() {

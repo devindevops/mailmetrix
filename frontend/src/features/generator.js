@@ -1,8 +1,17 @@
 import { $, escapeHtml } from "./utils.js";
 import { startFlow, flowActive, flowSuccess, flowError } from "./flow.js";
+import { attachActions, clearActions } from "./share.js";
 
 function field(id) {
   return $(id)?.value.trim() || "";
+}
+
+// Copy of the response that is safe to share/export: the DKIM private key is never included.
+function shareable(data) {
+  const copy = JSON.parse(JSON.stringify(data));
+  if (copy.dkim) delete copy.dkim.privateKey;
+  delete copy.warning;
+  return copy;
 }
 
 export function initGenerator() {
@@ -11,6 +20,7 @@ export function initGenerator() {
   if (!button || !output) return;
 
   button.addEventListener("click", async () => {
+    clearActions("generatorActions");
     const domain = field("generatorDomain");
     if (!domain) {
       output.className = "result error";
@@ -104,6 +114,9 @@ export function initGenerator() {
           }
         });
       });
+
+      // Share / export bar. The private key is excluded from everything that leaves this page.
+      attachActions("generator", shareable(data), "generatorActions", "generatorResult");
     } catch (error) {
       flowError("flowBackend");
       output.className = "result error";

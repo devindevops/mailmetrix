@@ -1,2 +1,14 @@
-# Require the designated maintainer to review all project changes.
+# Default repository owner
 * @kaushikparui
+
+# Critical CI/CD workflows and repository automation
+/.github/ @kaushikparui
+/.github/workflows/ @kaushikparui
+
+# Backend dependencies and source logic
+/backend/package.json @kaushikparui
+/backend/package-lock.json @kaushikparui
+/backend/src/ @kaushikparui
+
+# Frontend source logic
+/frontend/src/ @kaushikparui

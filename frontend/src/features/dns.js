@@ -1,5 +1,6 @@
 import { $, escapeHtml } from "./utils.js";
 import { startFlow, flowActive, flowSuccess, flowError } from "./flow.js";
+import { attachActions, clearActions } from "./share.js";
 
 export function initDNS() {
   const button = $("dnsButton");
@@ -9,6 +10,7 @@ export function initDNS() {
 
   button.addEventListener("click", async () => {
     const value = domain.value.trim();
+    clearActions("dnsActions");
 
     if (!value) {
       output.className = "result error";
@@ -65,6 +67,9 @@ export function initDNS() {
           </div>
         </div>`;
 
+      // Share / export bar (updated again below if a DKIM selector is checked).
+      attachActions("dns", data, "dnsActions", "dnsResult");
+
       $("dkimButton").addEventListener("click", async () => {
         const selector = $("dkimSelector").value.trim();
         const dkimButton = $("dkimButton");
@@ -87,6 +92,11 @@ export function initDNS() {
           }
 
           dkimOutput.innerHTML = `<div class="dns-record" style="margin-top:16px;"><div class="dns-record-header"><span class="dns-record-title">${escapeHtml(dkim.hostname)}</span><span class="dns-badge ${escapeHtml(dkim.status)}">${escapeHtml(dkim.status)}</span></div>${dkim.record ? `<pre>${escapeHtml(dkim.record)}</pre>` : "<div>No DKIM record found for this selector.</div>"}</div>`;
+
+          attachActions("dns", {
+            ...data,
+            dkim: { selector, hostname: dkim.hostname, status: dkim.status, record: dkim.record || null }
+          }, "dnsActions", "dnsResult");
         } catch (error) {
           dkimOutput.innerHTML = `<div class="result error" style="margin-top:16px;">${escapeHtml(error.message)}</div>`;
         } finally {

@@ -1,6 +1,8 @@
 const nodemailer = require("nodemailer");
 const dns = require("node:dns").promises;
 const net = require("node:net");
+// Single canonical IP blocklist shared with tls.js / score.js / blacklist.js.
+const { isPrivateIp, isValidHostname } = require("./netguard");
 
 const required = (value) =>
   typeof value === "string" && value.trim().length > 0;
@@ -36,60 +38,12 @@ const ALLOWED_INTERNAL_HOSTS = new Set(
     .filter(Boolean)
 );
 
-const blocked = new net.BlockList();
+// Kept as an export for backwards compatibility; the logic lives in netguard.js.
+const isBlockedIp = isPrivateIp;
 
-// IPv4
-[
-  ["0.0.0.0", 8],          // "this" network
-  ["10.0.0.0", 8],         // NOSONAR: S1313 - RFC 1918
-  ["100.64.0.0", 10],      // NOSONAR: S1313 - CGNAT (often used for internal infra)
-  ["127.0.0.0", 8],        // loopback
-  ["169.254.0.0", 16],     // NOSONAR: S1313 - link-local + cloud metadata
-  ["172.16.0.0", 12],      // NOSONAR: S1313 - RFC 1918
-  ["192.0.0.0", 24],       // NOSONAR: S1313 - IETF protocol assignments
-  ["192.0.2.0", 24],       // NOSONAR: S1313 - TEST-NET-1
-  ["192.168.0.0", 16],     // NOSONAR: S1313 - RFC 1918
-  ["198.18.0.0", 15],      // NOSONAR: S1313 - benchmarking
-  ["198.51.100.0", 24],    // NOSONAR: S1313 - TEST-NET-2
-  ["203.0.113.0", 24],     // NOSONAR: S1313 - TEST-NET-3
-  ["224.0.0.0", 4],        // NOSONAR: S1313 - multicast
-  ["240.0.0.0", 4]         // NOSONAR: S1313 - reserved (incl. 255.255.255.255)
-].forEach(([addr, prefix]) => blocked.addSubnet(addr, prefix, "ipv4"));
-
-// IPv6
-blocked.addAddress("::", "ipv6");              // unspecified
-blocked.addAddress("::1", "ipv6");             // loopback
-[
-  ["fc00::", 7],       // NOSONAR: S1313 - unique local
-  ["fe80::", 10],      // NOSONAR: S1313 - link-local
-  ["ff00::", 8],       // NOSONAR: S1313 - multicast
-  ["64:ff9b::", 96],   // NOSONAR: S1313 - NAT64 (can embed private IPv4)
-  ["2001:db8::", 32]   // NOSONAR: S1313 - documentation
-].forEach(([addr, prefix]) => blocked.addSubnet(addr, prefix, "ipv6"));
-
-function isBlockedIp(ip) {
-  const family = net.isIP(ip);
-  if (!family) return true; // not a valid IP -> fail closed
-
-  // Unwrap IPv4-mapped IPv6 (::ffff:127.0.0.1, or hex form ::ffff:7f00:1)
-  if (family === 6) {
-    const lower = ip.toLowerCase();
-
-    const dotted = lower.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
-    if (dotted) return isBlockedIp(dotted[1]);
-
-    const hex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (hex) {
-      const hi = Number.parseInt(hex[1], 16);
-      const lo = Number.parseInt(hex[2], 16);
-      return isBlockedIp(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
-    }
-
-    return blocked.check(ip, "ipv6");
-  }
-
-  return blocked.check(ip, "ipv4");
-}
+// One message for "does not resolve", "invalid name" and "resolves to a private IP", so the
+// response cannot be used to enumerate internal DNS names (e.g. Docker service names).
+const HOST_DENIED = "SMTP host is not allowed or could not be resolved";
 
 /**
  * Resolve the host once, validate EVERY returned address, and return a
@@ -103,22 +57,26 @@ async function resolveSafeHost(host) {
   if (net.isIP(host)) {
     addresses = [{ address: host }];
   } else {
+    // Public names must be dotted FQDNs (blocks single-label names like "redis" or "db").
+    if (!trustedInternal && !isValidHostname(host)) {
+      return { error: HOST_DENIED };
+    }
     try {
       addresses = await dns.lookup(host, { all: true, verbatim: true });
     } catch {
-      return { error: "SMTP host could not be resolved" };
+      return { error: HOST_DENIED };
     }
   }
 
   if (!addresses.length) {
-    return { error: "SMTP host could not be resolved" };
+    return { error: HOST_DENIED };
   }
 
   if (!trustedInternal) {
     // Reject if ANY record is internal; prevents mixed public/private answers.
     for (const { address } of addresses) {
       if (isBlockedIp(address)) {
-        return { error: "SMTP host is not allowed" };
+        return { error: HOST_DENIED };
       }
     }
   }
@@ -147,6 +105,9 @@ const ALLOWED_RECIPIENT_DOMAINS = (process.env.ALLOWED_RECIPIENT_DOMAINS || "")
 const ENFORCE_TEST_RECIPIENT =
   String(process.env.ENFORCE_TEST_RECIPIENT || "").toLowerCase() === "true";
 
+const MAX_HOST_LENGTH = 253;
+const MAX_USER_LENGTH = 256;
+const MAX_PASSWORD_LENGTH = 1024;
 const MAX_SUBJECT_LENGTH = 200;
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_DISPLAY_NAME_LENGTH = 100;
@@ -191,14 +152,14 @@ function recipientDomainAllowed(domain) {
   );
 }
 
+// Strip control characters (incl. CR/LF) from single-line header values.
+const stripControls = (value) => value.replace(/[\u0000-\u001f\u007f]/g, " ");
+
 // Display names are passed as structured fields to Nodemailer (which encodes
 // them safely); here we only strip control characters and cap the length.
 function cleanDisplayName(value) {
   if (!required(value)) return "";
-  return value
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .trim()
-    .slice(0, MAX_DISPLAY_NAME_LENGTH);
+  return stripControls(value).trim().slice(0, MAX_DISPLAY_NAME_LENGTH);
 }
 
 /* ------------------------------------------------------------------ */
@@ -231,6 +192,16 @@ async function testSMTP(data = {}) {
     if (!required(value)) {
       return validationError(error);
     }
+  }
+
+  if (smtpHost.trim().length > MAX_HOST_LENGTH) {
+    return validationError("SMTP host is too long");
+  }
+  if (smtpUser.length > MAX_USER_LENGTH) {
+    return validationError("SMTP username is too long");
+  }
+  if (smtpPassword.length > MAX_PASSWORD_LENGTH) {
+    return validationError("SMTP password is too long");
   }
 
   if (!requiredPort(smtpPort)) {
@@ -275,7 +246,10 @@ async function testSMTP(data = {}) {
     );
   }
 
-  if (required(subject) && subject.trim().length > MAX_SUBJECT_LENGTH) {
+  // Single-line header value: strip CR/LF and other control characters first.
+  const cleanSubject = required(subject) ? stripControls(subject).trim() : "";
+
+  if (cleanSubject.length > MAX_SUBJECT_LENGTH) {
     return validationError(
       `Subject must be ${MAX_SUBJECT_LENGTH} characters or fewer`
     );
@@ -353,7 +327,7 @@ async function testSMTP(data = {}) {
       to: recipientDisplayName
         ? { name: recipientDisplayName, address: recipient.address }
         : recipient.address,
-      subject: required(subject) ? subject.trim() : "SMTP Test Email",
+      subject: cleanSubject || "SMTP Test Email",
       text: message
     });
 

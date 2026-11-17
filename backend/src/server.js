@@ -8,8 +8,13 @@ const smtpRoutes = require("./routes/smtp");
 const dnsRoutes = require("./routes/dns");
 const headerRoutes = require("./routes/headers");
 const generatorRoutes = require("./routes/generator");
+const blacklistRoutes = require("./routes/blacklist");
+const scoreRoutes = require("./routes/score");
+const tlsRoutes = require("./routes/tls");
+const shareRoutes = require("./routes/share");
 
-const app = express();
+const app = express();  
+app.disable("x-powered-by"); // don't advertise "X-Powered-By: Express" on every response
 const PORT = Number(process.env.PORT || 4000);
 
 /* ------------------------------------------------------------------ */
@@ -76,6 +81,30 @@ const headersLimiter = createLimiter(
   "Too many requests, please try again later."
 );
 
+// Each blacklist check sends 9-12 DNS queries per IP.
+const blacklistLimiter = createLimiter(
+  positiveInt(process.env.RATE_LIMIT_BLACKLIST, 30),
+  "Blacklist check limit reached. Please try again later."
+);
+
+// One score run = ~40 DNS queries + outbound TLS connection.
+const scoreLimiter = createLimiter(
+  positiveInt(process.env.RATE_LIMIT_SCORE, 15),
+  "Deliverability score limit reached. Please try again later."
+);
+
+// Opens outbound sockets to user-chosen hosts (SSRF-guarded in services/netguard.js).
+const tlsLimiter = createLimiter(
+  positiveInt(process.env.RATE_LIMIT_TLS, 20),
+  "TLS inspection limit reached. Please try again later."
+);
+
+// Creating shares writes to disk; viewing them is cheap.
+const shareLimiter = createLimiter(
+  positiveInt(process.env.RATE_LIMIT_SHARE, 60),
+  "Share limit reached. Please try again later."
+);
+
 // HTTP request logging (registered first so 429 responses are logged too).
 app.use((req, res, next) => {
   const startTime = Date.now();
@@ -97,6 +126,20 @@ app.use("/smtp", smtpLimiter);
 app.use("/generator", generatorLimiter);
 app.use("/dns", dnsLimiter);
 app.use("/headers", headersLimiter);
+app.use("/blacklist", blacklistLimiter);
+app.use("/score", scoreLimiter);
+app.use("/tls", tlsLimiter);
+app.use("/share", shareLimiter);
+
+// Share allows larger payloads (up to 300kb) and parses its own body, so it
+// must be mounted BEFORE the global 100kb parser below.
+app.use("/share", shareRoutes);
+
+// Raw email headers can be large (long ARC/DKIM chains, or a whole message pasted by mistake),
+// so /headers gets a higher body limit than the global 100kb. Mounted BEFORE the global parser,
+// which skips requests that are already parsed.
+const HEADERS_BODY_LIMIT = process.env.HEADERS_BODY_LIMIT || "512kb";
+app.use("/headers", express.json({ limit: HEADERS_BODY_LIMIT }));
 
 // Parse JSON request bodies with a size limit.
 app.use(express.json({ limit: "100kb" }));
@@ -202,6 +245,9 @@ app.use("/smtp", smtpRoutes);
 app.use("/dns", dnsRoutes);
 app.use("/headers", headerRoutes);
 app.use("/generator", generatorRoutes);
+app.use("/blacklist", blacklistRoutes);
+app.use("/score", scoreRoutes);
+app.use("/tls", tlsRoutes);
 
 // Handle unmatched routes.
 app.use((req, res) => {
