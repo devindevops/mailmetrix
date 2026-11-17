@@ -2,7 +2,7 @@
 
 **Self-hosted email infrastructure diagnostics.**
 
-MailMetrix is an email diagnostics toolkit for developers, system administrators, and DevOps engineers. It brings SMTP testing, DNS email authentication checks, email header analysis, and DKIM/DMARC generation together in one web application. It also includes blacklist checking, a domain deliverability score, a TLS certificate inspector, and shareable, exportable results.
+MailMetrix is an email diagnostics toolkit for developers, system administrators, and DevOps engineers. It brings SMTP testing, DNS email authentication checks, email header analysis, and DKIM/DMARC generation together in one web application. It also includes blacklist checking, a domain deliverability score, a TLS certificate inspector, and shareable, exportable results. An optional update notice tells you when a new release is published.
 
 Run MailMetrix in your own environment and maintain control over how you deploy and access your email diagnostic tools.
 
@@ -31,6 +31,7 @@ Self-hosting helps reduce dependence on third-party diagnostic services, but it 
 - **Modular:** Keep backend routes, services, and frontend feature logic separated.
 - **Practical:** Bring commonly used email diagnostics into one interface.
 - **Hardened by default:** Outbound-connection guardrails, rate limiting, security headers, and non-root containers are built in.
+- **Stay current:** An optional in-app notice tells you when a new release is available, and it can be turned off.
 - **Transparent:** Inspect the source code, report issues, and contribute improvements.
 
 ## Features
@@ -132,6 +133,8 @@ Content-Type: application/json
 
 `selector` is optional. When omitted, a list of common DKIM selectors is probed; a domain using a custom selector may therefore show a partial DKIM result until its selector is supplied.
 
+Each score run is bounded by configurable limits on DNS queries per run, concurrent runs, hourly blacklist and TLS probes, and total run time (see the `SCORE_*` settings under [Configuration](#configuration)).
+
 **Note:** A score is a diagnostic aid, not a guarantee of inbox placement. Receiving providers apply their own reputation and content rules.
 
 ### 7. TLS Certificate Inspector
@@ -178,6 +181,42 @@ Notes:
 - If you protect your deployment with authentication, people opening a share link need access to the deployment too.
 - Shared results are written to the `mailmetrix-data` Docker volume so they survive container restarts and rebuilds. Each result is limited to 256 KB, and storage is capped at 5,000 results.
 
+### 9. Update Notifications
+
+MailMetrix can tell you when a newer release is available, so a self-hosted instance does not quietly fall behind. The check is on by default and can be turned off.
+
+How it works:
+
+1. When the page loads, the frontend reads its own version from `frontend/src/version.json` and asks the backend whether a newer release exists (`GET /api/version/check`).
+2. The backend asks GitHub's API for the latest published release of the project and caches the answer in memory (6 hours by default; after a failed lookup it retries after 15 minutes). Your browser never contacts GitHub directly.
+3. If the latest release is newer than the installed version, the interface shows a banner ("MailMetrix vX.Y.Z is ready") with a link to the release, and an **Update available** badge next to the version in the footer.
+4. Dismissing the banner hides it for that version only (remembered in your browser). The footer badge stays, and the banner returns when an even newer release is published.
+
+```http
+GET /api/version/check
+```
+
+```json
+{
+  "enabled": true,
+  "latest": "1.2.0",
+  "releaseUrl": "https://github.com/devindevops/mailmetrix/releases/tag/v1.2.0",
+  "publishedAt": "2026-11-16T00:00:00Z",
+  "checkedAt": "2026-11-17T04:00:00.000Z"
+}
+```
+
+When the check is turned off, or no release is available yet, `enabled` is `false` or `latest` is `null`, and no notice is shown.
+
+Notes:
+
+- Only a **published GitHub Release** counts. A bare git tag, a draft, or a pre-release does not trigger the notice. Release tags must look like `1.2.0` or `v1.2.0`.
+- Versions are compared numerically, so `1.10.0` is correctly newer than `1.9.0`.
+- The check never gets in the way. If the server is offline, GitHub is unreachable or rate limiting, or the check is disabled, no notice is shown and nothing else is affected.
+- The backend sends a plain request for the public latest-release data. No diagnostic data, credentials, or user input is sent (see [Understand external connections](#understand-external-connections)).
+- To turn it off, set `DISABLE_UPDATE_CHECK=true` in `.env`. A fork can point the check at its own repository with `UPDATE_CHECK_REPO=owner/repo`, and a private repository also needs `GITHUB_TOKEN`. See [Configuration](#configuration).
+- The notice only tells you that an update exists. It does not update anything; see [Updating MailMetrix](#updating-mailmetrix).
+
 ## Architecture
 
 MailMetrix separates the backend API from the frontend application.
@@ -194,15 +233,16 @@ backend/
 ├── package-lock.json
 └── src
     ├── routes
-    │   ├── _util.js
-    │   ├── blacklist.js
-    │   ├── dns.js
-    │   ├── generator.js
-    │   ├── headers.js
-    │   ├── score.js
-    │   ├── share.js
-    │   ├── smtp.js
-    │   └── tls.js
+    │   ├── blacklist.js
+    │   ├── dns.js
+    │   ├── generator.js
+    │   ├── headers.js
+    │   ├── score.js
+    │   ├── share.js
+    │   ├── smtp.js
+    │   ├── tls.js
+    │   ├── _util.js
+    │   └── version.js
     ├── server.js
     └── services
         ├── blacklist.js
@@ -213,7 +253,8 @@ backend/
         ├── score.js
         ├── share.js
         ├── smtp.js
-        └── tls.js
+        ├── tls.js
+        └── version.js
 ```
 
 ### Frontend
@@ -225,31 +266,49 @@ frontend/
 └── src
     ├── app.js
     ├── features
-    │   ├── blacklist.js
-    │   ├── dns.js
-    │   ├── flow.js
-    │   ├── generator.js
-    │   ├── headers.js
-    │   ├── renderers.js
-    │   ├── score.js
-    │   ├── share.js
-    │   ├── smtp.js
-    │   ├── tabs.js
-    │   ├── tls.js
-    │   ├── ui.js
-    │   └── utils.js
+    │   ├── blacklist.js
+    │   ├── dns.js
+    │   ├── flow.js
+    │   ├── generator.js
+    │   ├── headers.js
+    │   ├── mobile-nav.js
+    │   ├── renderers.js
+    │   ├── score.js
+    │   ├── share.js
+    │   ├── smtp.js
+    │   ├── tabs.js
+    │   ├── tls.js
+    │   ├── ui.js
+    │   ├── update.js
+    │   └── utils.js
     ├── icons
-    │   ├── android-chrome-192x192.png
-    │   ├── android-chrome-512x512.png
-    │   ├── apple-touch-icon.png
-    │   ├── favicon-16x16.png
-    │   ├── favicon-32x32.png
-    │   └── favicon.ico
+    │   ├── android-chrome-192x192.png
+    │   ├── android-chrome-512x512.png
+    │   ├── apple-touch-icon.png
+    │   ├── favicon-16x16.png
+    │   ├── favicon-32x32.png
+    │   └── favicon.ico
     ├── index.html
     ├── sitemap.xml
     ├── site.webmanifest
     ├── style.css
     └── version.json
+```
+
+### Github Page for Project Website
+
+```text
+docs/
+├── assets
+│   └── screenshots
+│       ├── blacklist-check.png
+│       ├── deliverability-score.png
+│       ├── dkim-dmarc-generator.png
+│       ├── dns-checker.png
+│       ├── header-analyzer.png
+│       ├── smtp-tester.png
+│       └── tls-inspector.png
+└── index.html
 ```
 
 `server.js` and `app.js` serve as the backend and frontend bootstrap/orchestration files.
@@ -262,6 +321,8 @@ Shared building blocks:
 
 - `backend/src/services/netguard.js` is the common outbound-connection guard (public-address validation and hostname checks) used by the blacklist, score, and TLS services.
 - `frontend/src/features/flow.js` drives the Workflow card for every tool, and `frontend/src/features/share.js` wires the Blacklist, Score, and TLS tools (request, rendering, and the share/export bar) and provides the same share/export bar to the SMTP, DNS, and Generator tabs. `renderers.js` renders shared SMTP, DNS, and Generator results when a share link is opened. `ui.js` provides DOM helpers that build results with text nodes rather than `innerHTML`.
+- `backend/src/services/version.js` looks up the latest GitHub release and caches it, and `frontend/src/features/update.js` compares it with `version.json` and shows the update banner and footer badge (see [Update Notifications](#9-update-notifications)).
+- `frontend/src/features/mobile-nav.js` collapses the tool list behind a menu button on small screens; on desktop the sidebar is unchanged.
 
 ## Version Management
 
@@ -276,7 +337,7 @@ When executed through npm's `version` lifecycle hook, the script synchronizes th
 | File | Purpose |
 |---|---|
 | `package.json` | Defines the source version |
-| `frontend/src/version.json` | Provides version information to the frontend footer |
+| `frontend/src/version.json` | Provides version information to the frontend footer and to the update check |
 | `backend/package.json` | Keeps the backend package version synchronized |
 | `backend/package-lock.json` | Updates the backend lockfile version metadata |
 
@@ -341,6 +402,8 @@ If the `version` script already exists, integrate the command into the existing 
 - Review the generated changes before publishing.
 - Confirm that the frontend footer displays the updated version.
 - Ensure the backend package and lockfile remain synchronized.
+- Publish a **GitHub Release** for each version, using a tag such as `1.2.0` or `v1.2.0` that matches the version in `package.json`. Running instances learn about new versions from the latest published release, so a bare git tag, a draft, or a pre-release does not notify anyone (see [Update Notifications](#9-update-notifications)).
+- Make sure the build you publish contains the matching `frontend/src/version.json`. Otherwise an instance running that build would keep reporting the older version and keep showing the update notice.
 
 The script updates local project files; it does not publish Docker images, create a GitHub Release, or deploy the application by itself.
 
@@ -428,6 +491,18 @@ docker compose down
 
 Shared results are kept in the `mailmetrix-data` volume. `docker compose down` keeps the volume; `docker compose down -v` deletes it, along with all stored share links.
 
+### Updating MailMetrix
+
+When the in-app update notice (see [Update Notifications](#9-update-notifications)) says a new release is available, review its release notes, then fetch the new source and rebuild:
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+To run a specific release instead of the latest commit, check out its tag before building (for example `git fetch --tags && git checkout v1.2.0`). Shared results stay in the `mailmetrix-data` volume across rebuilds. Review `.env.example` after updating in case new settings were added.
+
 ### Development with Docker Compose Watch
 
 If your Docker Compose configuration defines file-watch actions, you can use:
@@ -447,6 +522,7 @@ The following endpoints are currently documented by the project.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Minimal liveness probe (returns only a status) |
+| `GET` | `/api/version/check` | Report the latest published GitHub release, so the interface can show an update notice (see [Update Notifications](#9-update-notifications)) |
 | `POST` | `/api/smtp/test` | Run an SMTP test |
 | `GET` | `/api/dns/check?domain=example.com` | Check email-related DNS records |
 | `GET` | `/api/dns/dkim?domain=example.com&selector=google` | Check a DKIM selector |
@@ -493,13 +569,14 @@ MailMetrix is designed to support self-hosted email diagnostics. Deploy it with 
 | **Outbound connection abuse (SSRF)** | The SMTP test resolves the target host once, validates every returned address, and connects only to the validated IP, which mitigates DNS-rebinding. Loopback, private (RFC 1918), CGNAT, link-local (including the `169.254.169.254` cloud metadata address), multicast, and reserved ranges are blocked, including IPv6 and IPv4-mapped forms. Ports are limited to `25`, `465`, `587`, and `2525` by default. |
 | **Port-scanning oracle** | Network-level SMTP failures (refused, timeout, reset) return one generic message, so responses cannot be used to map internal hosts. Genuine SMTP protocol errors, such as rejected credentials, are still reported. |
 | **Email abuse** | From and Recipient must each be a single valid address; address lists, `Name <addr>` forms, and header-injection attempts are rejected. Display names cannot add recipients. Subject is limited to 200 characters and message to 5,000. Optional recipient-domain restrictions are available. |
-| **Rate limiting** | Per-IP limits on every API route, with stricter limits for the SMTP, generator, and DNS endpoints. |
-| **Resource exhaustion** | DKIM key generation runs off the main thread with a concurrency cap and a bounded queue; excess requests receive `503` instead of stalling the server. |
+| **Rate limiting** | Per-IP limits on every API route, with stricter limits for the SMTP, generator, DNS, blacklist, score, and TLS endpoints. |
+| **Resource exhaustion** | DKIM key generation runs off the main thread with a concurrency cap and a bounded queue; excess requests receive `503` instead of stalling the server. Deliverability scoring is also bounded by configurable limits on DNS queries per run, concurrent runs, hourly blacklist and TLS probes, and total run time (the `SCORE_*` settings). |
 | **HTTP hardening** | Nginx sends `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` headers, hides its version, and strips the backend's `X-Powered-By` header. |
 | **Information exposure** | The public health probe returns no process internals. Detailed telemetry is limited to the internal network. |
 | **Container privileges** | Both containers run as non-root users (`node` for the backend, uid `101` for Nginx). All Linux capabilities are dropped and `no-new-privileges` is set. Base images are pinned to supported versions rather than floating tags. |
 | **TLS inspector and score connections** | The TLS inspector (and the TLS check inside the deliverability score) validates the hostname, resolves it once, rejects loopback, private, link-local, and reserved addresses, and connects only to the validated IP. Ports are limited to a fixed allow-list (`25`, `465`, `587`, `2525`, `443`, `993`, `995`). |
 | **Shared results** | Only SMTP, DNS, Header, Generator, Blacklist, Score, and TLS results can be stored, and header shares never include the raw header text. Private keys and secret-named fields are removed before storage. Share IDs are random, entries expire automatically, payload size and total count are capped, shared output is rendered with escaped text, and the HTML export is served with a restrictive Content-Security-Policy. |
+| **Update check** | The backend, not the browser, contacts GitHub, with a short timeout, a cached result, and no user input in the request. Only plain release tags such as `1.2.0` are accepted, only `https://github.com/` release links are shown, text is rendered as escaped text, and a failed lookup never affects the rest of the application. The check has its own rate limit and can be disabled with `DISABLE_UPDATE_CHECK=true`. |
 
 These controls reduce risk but do **not** replace authentication. Please read the limitations below.
 
@@ -559,7 +636,7 @@ Then:
 - Put authentication in front of the application (see above) before exposing it to any untrusted network.
 - Use HTTPS when accessing the application remotely. If TLS terminates in front of the Nginx container, enable `Strict-Transport-Security` there.
 - Set `TRUST_PROXY` correctly so rate limiting identifies real client addresses (see [Configuration](#configuration)).
-- Keep Docker, the host operating system, base images, and application dependencies updated. Pinned image tags do not update themselves; consider Renovate or Dependabot to propose bumps.
+- Keep Docker, the host operating system, base images, and application dependencies updated. Pinned image tags do not update themselves; consider Renovate or Dependabot to propose bumps. MailMetrix itself shows an in-app notice when a new release is published (see [Update Notifications](#9-update-notifications)).
 - Do not publish the backend port. The default Compose file uses `expose`, not `ports`, for the backend; keep it that way, because `TRUST_PROXY` and the internal-only health endpoint assume that Nginx is the only way in.
 - If other services share the Compose network, consider placing them on a separate network so a compromised or misconfigured container cannot reach MailMetrix's backend directly.
 - Review the application's logging and error-handling behavior before processing sensitive information.
@@ -587,6 +664,7 @@ For example:
 - DKIM/DMARC generation operates according to the implementation of the generator.
 - Blacklist checks send DNS queries containing the IP address or domain being checked to the operators of the blacklists, through the resolver available to the backend container.
 - The TLS inspector connects to the host and port you specify, and the deliverability score connects to the domain's primary MX on port 25 and queries DNS for its records and blacklists.
+- The update check makes a request from the backend to GitHub's API (`api.github.com`) to read the latest release of the project. It sends no diagnostic data or user input, and your browser does not contact GitHub for it. GitHub can see the request's source address. Turn it off with `DISABLE_UPDATE_CHECK=true` if your environment should make no such connection.
 
 Review the source code to understand which services receive requests or data during each operation.
 
@@ -631,6 +709,7 @@ All of the following are optional. Add them to `.env` (or the backend `environme
 | `RATE_LIMIT_SCORE` | `15` | Max deliverability-score requests per client per window. |
 | `RATE_LIMIT_TLS` | `20` | Max TLS-inspection requests per client per window. |
 | `RATE_LIMIT_SHARE` | `60` | Max share and share-export requests per client per window. |
+| `RATE_LIMIT_VERSION` | `60` | Max update-check requests per client per window. |
 | `SHARE_DIR` | `/app/data/shares` in `docker-compose.yml` | Directory where shared results are stored. Keep it on the `mailmetrix-data` volume so links survive restarts. |
 | `SHARE_TTL_DAYS` | `7` | Days before a shared result link expires and is deleted. |
 | `SMTP_ALLOWED_PORTS` | `25,465,587,2525` | SMTP ports the tester may connect to. |
@@ -639,6 +718,10 @@ All of the following are optional. Add them to `.env` (or the backend `environme
 | `ENFORCE_TEST_RECIPIENT` | `false` | When `true`, the test email may only be sent to the From address. |
 | `DKIM_MAX_CONCURRENT` | `2` | Maximum simultaneous DKIM key generations. |
 | `DKIM_MAX_QUEUE` | `10` | Maximum queued key generations before returning `503`. |
+| `DISABLE_UPDATE_CHECK` | `false` | Set to `true` to turn off the update check. The backend then makes no request to GitHub and no update notice is shown. |
+| `UPDATE_CHECK_REPO` | `devindevops/mailmetrix` | GitHub `owner/repo` whose latest release is checked. Set it only if you maintain a fork. |
+| `UPDATE_CHECK_INTERVAL_HOURS` | `6` | How long the backend caches the latest-release answer before asking GitHub again. |
+| `GITHUB_TOKEN` | *(empty)* | Only needed if `UPDATE_CHECK_REPO` points at a private repository. Needs read access to releases. Never commit it. |
 
 Example for a shared or internet-adjacent deployment:
 
@@ -648,6 +731,29 @@ ALLOWED_RECIPIENT_DOMAINS=example.com
 ENFORCE_TEST_RECIPIENT=true
 RATE_LIMIT_SMTP=10
 ```
+
+Example for an environment that should make no outbound call to GitHub:
+
+```dotenv
+DISABLE_UPDATE_CHECK=true
+```
+
+### Advanced share and score limits
+
+These tune how much the share store and the deliverability score may use. The values shown are example values from a sample `.env`, not guaranteed defaults; check `.env.example` and the backend code before relying on them.
+
+| Variable | Example value | Purpose |
+|---|---|---|
+| `SHARE_PER_IP_DAILY` | `30` | Maximum number of share links one client IP can create per day. |
+| `SHARE_MAX_TOTAL_MB` | `512` | Maximum total size, in MB, of stored shared results. |
+| `SHARE_MAX_FILES` | `5000` | Maximum number of stored shared results. |
+| `SCORE_CACHE_TTL_SECONDS` | `300` | How long, in seconds, a deliverability score is cached. |
+| `SCORE_TARGET_TTL_SECONDS` | `900` | Per-domain time window, in seconds, applied to repeated scoring requests. |
+| `SCORE_MAX_DNS_QUERIES` | `80` | Maximum DNS queries a single score run may issue. |
+| `SCORE_DEADLINE_SECONDS` | `25` | Maximum total time, in seconds, for one score run. |
+| `SCORE_MAX_CONCURRENT` | `8` | Maximum score runs processed at the same time. |
+| `SCORE_DNSBL_IPS_PER_HOUR` | `300` | Maximum IP addresses the score may check against blacklists per hour. |
+| `SCORE_TLS_PROBES_PER_HOUR` | `120` | Maximum TLS probes the score may make per hour. |
 
 Keep `.env.example` in sync with this list when you add or change settings.
 
@@ -666,7 +772,7 @@ These checks reduce risk but do not guarantee that the software is free of vulne
 
 ## Privacy Policy
 
-*Last updated: 11 November 2026*
+*Last updated: 17 November 2026*
 
 ### In short
 
@@ -674,7 +780,7 @@ These checks reduce risk but do not guarantee that the software is free of vulne
 - MailMetrix has **no analytics, advertising, tracking, or telemetry**, and does not send data to the maintainers.
 - The backend does not store SMTP credentials, email headers, or generated keys. They are processed for the request and discarded.
 - The only results the backend stores are SMTP, DNS, Header Analysis, Generator, Blacklist, Deliverability Score, and TLS results that a user explicitly chooses to share. Passwords, DKIM private keys, and raw header text are never stored. Header analyses hide the subject, display names, and email usernames by default. Shared results are kept on your instance's disk until they expire.
-- Data leaves your instance only to destinations **you** specify, such as the SMTP server you test and DNS resolvers.
+- Data leaves your instance only to destinations **you** specify, such as the SMTP server you test and DNS resolvers. The one other connection is the optional update check, which asks GitHub's API for the project's latest release without sending any of your data, and which you can turn off with `DISABLE_UPDATE_CHECK=true`.
 
 ### Scope and responsibility
 
@@ -690,6 +796,7 @@ This policy applies to the MailMetrix software and to the project's GitHub Pages
 | Generated DKIM private keys | To give you key material to publish and keep. | Not stored on the server. The key is delivered to your browser, so protect it and transmit it only over HTTPS. |
 | IP addresses, domains, hostnames, and ports submitted to the Blacklist, Score, and TLS tools | To perform blacklist lookups, score checks, and TLS handshakes. | Sent in the request body and processed in memory; not stored unless the user shares the result. The queried IP or domain is sent to blacklist operators via DNS, and the TLS and score tools connect to the host specified. |
 | Shared results (SMTP, DNS, Header Analysis, Generator, Blacklist, Score, and TLS results) | To let a user send a result to someone else through a link. Shared SMTP results contain diagnostic output and the SMTP host and port, not credentials or message content; shared generator results exclude private keys; shared header analyses exclude the raw headers and, by default, hide the subject, display names, and email usernames. | Stored as a file on the instance's `mailmetrix-data` volume only when the user selects "Share link", and deleted automatically after `SHARE_TTL_DAYS` (7 days by default). Anyone with the link can view it until then. |
+| Update check (latest release information) | To tell you when a newer MailMetrix release is available. | The backend requests the public latest-release data from GitHub's API. The request carries no user input or diagnostic data; GitHub can see the server's source address and a `mailmetrix-update-check` User-Agent. The answer is cached in memory (6 hours by default) and not written to disk. The browser remembers only which version's banner you dismissed, in its local storage. Disabled with `DISABLE_UPDATE_CHECK=true`. |
 | Client IP addresses | To apply rate limits. | Held temporarily in memory as counters, which expire after the rate-limit window and reset on restart. They also appear in Nginx access logs. |
 | Logs | To operate and troubleshoot the instance. | See below. |
 
@@ -704,11 +811,12 @@ This policy applies to the MailMetrix software and to the project's GitHub Pages
 - MailMetrix does not include third-party analytics, advertising, or tracking services.
 - SMTP tests connect to the mail server you specify, and DNS checks query DNS resolvers available to your environment. Those services receive the data needed for the lookup or message and handle it under their own policies.
 - Blacklist checks and the blacklist portion of the deliverability score send DNS queries containing the IP address or domain being checked to the blacklist operators (for example Spamhaus, Barracuda, or SpamCop) through your resolver. Those operators handle query data under their own policies.
+- The update check contacts GitHub's API from your backend to read the project's latest release. GitHub handles that request under [its privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). No data from your diagnostics is included, and you can turn the check off.
 - Your hosting provider, network, or reverse proxy can observe traffic to your instance. Use HTTPS for remote access.
 
 ### Cookies and browser storage
 
-The MailMetrix web interface is designed not to use tracking cookies or third-party scripts. If you add authentication or other components in front of it, those may set their own cookies, which are your responsibility.
+The MailMetrix web interface is designed not to use tracking cookies or third-party scripts. It keeps a few harmless preferences in your browser's local storage, such as the chosen light or dark theme and which update notice you dismissed. If you add authentication or other components in front of it, those may set their own cookies, which are your responsibility.
 
 ### The project website
 
@@ -721,6 +829,7 @@ The MailMetrix GitHub Pages site is a static page. It does not use analytics, co
 - Be careful before pasting real email headers, which can contain addresses, IP addresses, and message identifiers of third parties.
 - Configure log retention to suit your needs.
 - Share results only when their contents are fine for the recipients to see, and lower `SHARE_TTL_DAYS` if you want links to expire sooner.
+- Set `DISABLE_UPDATE_CHECK=true` if your instance should not contact GitHub.
 - Do not post credentials, private keys, or personal data in public issues.
 
 ### Changes to this policy
